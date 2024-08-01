@@ -39,6 +39,6 @@ mergedDataFlat<- mergedDataFlat %>% mutate(across(2:5,~.-1))
 
 # Write an output file of all the merged data ----------
 
-outputFile = paste(basename(inputFolder), finalText,"merged.csv") # spaces will be inserted
+outputFile = paste(basename(inputFolder), "merged", finalText) # spaces will be inserted
 write_csv(mergedDataFlat,file.path(outputFolder, outputFile))
 
