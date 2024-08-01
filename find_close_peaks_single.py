@@ -2,6 +2,7 @@
 # Output will be displayed.
 # KNOWN ISSUES: An erroneous peak is always identified at (0,0)
 # TODO: option for background subtraction
+# TODO: Subpixel localization
 
 
 from ij import IJ, ImagePlus, ImageStack
@@ -33,10 +34,10 @@ def getOptions(): # in pixels
 	gd.addNumericField("Channel number for first channel", 3, 0)
 	gd.addNumericField("Channel number for second channel", 2, 0)
 	#gd.addNumericField("radius_background", 100, 0)
- 	gd.addNumericField("Min peak width (sigma) in calibrated units", 0.5, 2)
- 	gd.addNumericField("Max peak width (sigma) in calibrated units", 5.0, 2)
+ 	gd.addNumericField("Min peak width (sigma) in calibrated units", 0.1, 2)
+ 	gd.addNumericField("Max peak width (sigma) in calibrated units", 0.5, 2)
   	gd.addNumericField("minPeakValue first channel", 40, 0)
-  	gd.addNumericField("minPeakValue second channel", 15, 0)
+  	gd.addNumericField("minPeakValue second channel", 20, 0)
   	gd.addNumericField("min_dist", 2, 0)
   	gd.showDialog()
 	ch1Name = gd.getNextString()
@@ -174,19 +175,28 @@ def run():
 	p_1 = zeros(ip1_1.numDimensions(), 'i')
 	p_2 = zeros(ip2_1.numDimensions(), 'i')
 
+
+	# set up a table for coordinates
+	peaksTable = ResultsTable()
+
 	# Load every peak as a point in the PointRoi
 	for peak in peaks_1:
 	  # Read peak coordinates into an array of integers
 	  peak.localize(p_1)
 	  roi_1.addPoint(imp1, p_1[0], p_1[1])
+	  peaksTable.incrementCounter()
+	  peaksTable.addValue("Channel",ch1Name)
+	  peaksTable.addValue("X",p_1[0])
+	  peaksTable.addValue("Y",p_1[1])
 
 	for peak in peaks_2:
 	  # Read peak coordinates into an array of integers
 	  peak.localize(p_2)
 	  roi_2.addPoint(imp2, p_2[0], p_2[1])
-
-
-
+	  peaksTable.incrementCounter()
+	  peaksTable.addValue("Channel",ch2Name)
+	  peaksTable.addValue("X",p_2[0])
+	  peaksTable.addValue("Y",p_2[1])
 	
 	# Check for close peaks
 	
@@ -250,5 +260,8 @@ def run():
 	table.addValue("Number of %s within %s um of %s" %(ch2Name, min_distance, ch1Name), roi_3.getCount(0))
 	table.addValue("Number of %s within %s um of %s" %(ch1Name, min_distance, ch2Name), roi_4.getCount(0))
 	table.show("Results of Analysis")
+	
+	peaksTable.show("Peak Coordinates")
+	
 
 run()
