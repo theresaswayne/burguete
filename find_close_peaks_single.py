@@ -1,6 +1,6 @@
 # Usage: Run plugin and open input image when prompted.
 # Output will be displayed.
-# KNOWN ISSUES: An erroneous peak is always identified at (0,0)
+# KNOWN ISSUES: An erroneous point is always added to the ROI and counts at (0,0) due to the initialization of the PointROI
 # TODO: option for background subtraction
 # TODO: Subpixel localization
 

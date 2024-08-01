@@ -9,8 +9,8 @@
 # Supports different peak height by channel
 # Saves results, log, and ROI manager point selections
 
-# KNOWN ISSUES: An erroneous peak is always identified at (0,0)
-# TODO: Option for background subtraction, merge csv files
+# KNOWN ISSUES: An erroneous point is always added to the ROI and counts at (0,0) due to the initialization of the PointROI
+# TODO: Option for background subtraction, subpixel localization, merge results files
 
 from ij import IJ, ImagePlus, ImageStack
 from ij.plugin import ZProjector
@@ -231,7 +231,7 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, ch2N
 		os.makedirs(saveDir)
 	IJ.log("Saving to" + saveDir)
 	table.save(os.path.join(saveDir, fileName + "_Results.csv"))
-	peaksTable.save(os.path.join(saveDir, fileName + "_Peaks.csv")))
+	peaksTable.save(os.path.join(saveDir, fileName + "_Peaks.csv"))
   	IJ.selectWindow("Log")
   	IJ.saveAs("Text", os.path.join(saveDir, "Peaks_Log.txt"));
 
