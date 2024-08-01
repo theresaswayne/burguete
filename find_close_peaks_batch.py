@@ -169,18 +169,30 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, ch2N
 	p_1 = zeros(ip1_1.numDimensions(), 'i')
 	p_2 = zeros(ip2_1.numDimensions(), 'i')
 
+	# set up a table for coordinates
+	peaksTable = ResultsTable()
 
 	# Load every peak as a point in the PointRoi
 	for peak in peaks_1:
 	  # Read peak coordinates into an array of integers
 	  peak.localize(p_1)
 	  roi_1.addPoint(imp1, p_1[0], p_1[1])
+	  peaksTable.incrementCounter()
+	  peaksTable.addValue("Channel",ch1Name)
+	  peaksTable.addValue("X",p_1[0])
+	  peaksTable.addValue("Y",p_1[1])
 	
 
 	for peak in peaks_2:
 	  # Read peak coordinates into an array of integers
 	  peak.localize(p_2)
 	  roi_2.addPoint(imp2, p_2[0], p_2[1])
+	  peaksTable.incrementCounter()
+	  peaksTable.addValue("Channel",ch2Name)
+	  peaksTable.addValue("X",p_2[0])
+	  peaksTable.addValue("Y",p_2[1])
+
+	# Check for close peaks
 
 	for peak_1 in peaks_1:
 		peak_1.localize(p_1)
@@ -212,11 +224,14 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, ch2N
 	table.addValue("Number of %s within %s um of %s" %(ch2Name, min_distance, ch1Name), roi_3.getCount(0))
 	table.addValue("Number of %s within %s um of %s" %(ch1Name, min_distance, ch2Name), roi_4.getCount(0))
 	#table.show("Results of Analysis")
+
+	
 	saveDir = currentDir.replace(srcDir, dstDir) if keepDirectories else dstDir
 	if not os.path.exists(saveDir):
 		os.makedirs(saveDir)
 	IJ.log("Saving to" + saveDir)
 	table.save(os.path.join(saveDir, fileName + "_Results.csv"))
+	peaksTable.save(os.path.join(saveDir, fileName + "_Peaks.csv")))
   	IJ.selectWindow("Log")
   	IJ.saveAs("Text", os.path.join(saveDir, "Peaks_Log.txt"));
 
