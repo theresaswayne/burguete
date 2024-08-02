@@ -87,7 +87,7 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, table):
 	IJ.log("Saving to" + saveDir)
 	IJ.saveAs(maskImp, "Tiff", os.path.join(saveDir, baseFileName +"_Mask.tif"))
 	table.save(os.path.join(saveDir, baseFileName + "_MaskArea.csv"))
-	table.save(os.path.join(saveDir, "MaskAreas.csv"))
+	table.save(os.path.join(saveDir, "merged MaskAreas.csv"))
 	IJ.selectWindow("Log")
 	IJ.saveAs("Text", os.path.join(saveDir, "Masks_Log.txt"));
 
