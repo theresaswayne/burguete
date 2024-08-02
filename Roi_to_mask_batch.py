@@ -70,6 +70,7 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, table):
 	# Add to results table
 	table.addValue("Mask Area",stats.area)
 
+		
 	# create the mask and show it
 	rm.select(0);
 	mask = imp.createRoiMask()
@@ -80,11 +81,15 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, table):
 	IJ.run(maskImp, "Divide...", "value=255");
 	IJ.run(maskImp, "glasbey_inverted", "display=Mask")
 
+	# Clear the area outside the ROI to avoid detecting background spots
+	IJ.run(imp, "Clear Outside", "stack");
+
 	# save the mask, results, log
 	saveDir = currentDir.replace(srcDir, dstDir) if keepDirectories else dstDir
 	if not os.path.exists(saveDir):
 		os.makedirs(saveDir)
 	IJ.log("Saving to" + saveDir)
+	IJ.saveAs(imp, "Tiff", os.path.join(saveDir, baseFileName +".tif"))
 	IJ.saveAs(maskImp, "Tiff", os.path.join(saveDir, baseFileName +"_Mask.tif"))
 	table.save(os.path.join(saveDir, baseFileName + "_MaskArea.csv"))
 	table.save(os.path.join(saveDir, "merged MaskAreas.csv"))
