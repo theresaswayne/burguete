@@ -33,9 +33,6 @@ import os
 from loci.plugins import BF
 from jarray import array
 
-# TODO: Clean up at the end
-# TODO: count ROIs to exclude bad data sets
-
 def process(srcDir, dstDir, currentDir, fileName, keepDirectories, skip):
 	
  	IJ.run("Close All", "")
@@ -52,12 +49,17 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, skip):
  	
  	rm.runCommand("Open", os.path.join(currentDir, fileName))
  	
- 	# loop through ROIs skipping as needed
-
+ 	# loop through ROIs, skipping as needed
  	
  	numRois = rm.getCount()
  	IJ.log("This set has " + str(numRois) + " ROIs")
- 	startIndex = skipRois # indices start at 0, so if we skip one, we start at 1
+ 	
+ 	# check for a valid number of ROIs
+ 	if (numRois - skipRois) % 2 != 0:
+ 		IJ.log("Skipped ROI set " + fileName + " because it has an invalid number of ROIs.")
+ 		return
+
+	startIndex = skipRois # indices start at 0, so if we skip one, we start at 1
  	endIndex = numRois - startIndex # end is not included in range 
  	cellCount = 1
  	for RoiIndex in range(startIndex, endIndex, 2): # if we skip the first ROI, indices will be 1, 3, etc
@@ -100,6 +102,12 @@ def run():
 		if containString not in filename:
 			continue
 		process(srcDir, dstDir, root, filename, keepDirectories, skipRois)
+
+	rm = RoiManager.getInstance()
+	if not rm:
+		rm = RoiManager()
+	rm.reset()
+	IJ.run("Close All", "")
 	IJ.log("Done!")
 
 run()
