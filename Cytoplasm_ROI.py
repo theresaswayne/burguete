@@ -82,7 +82,8 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, skip):
 	if not os.path.exists(saveDir):
 		os.makedirs(saveDir)
 	IJ.log("Saving to" + saveDir)
-	rm.save(os.path.join(saveDir, fileName + "_Cyto_Rois.zip"))
+	baseName = os.path.splitext(fileName)[0]
+	rm.save(os.path.join(saveDir, baseName + "_Cyto_Rois.zip"))
 
 
 def run():
