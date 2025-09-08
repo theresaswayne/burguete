@@ -18,7 +18,7 @@
 # updated by Theresa Swayne, Columbia University, 2022, 2024, 2025
 # Saves results, log, and ROI manager point selections
 
-# TODO: cycle through ROIs, measure areas, write table
+# TODO: cycle through ROIs, measure areas IN MICRONS, find aggregates within each ROI, write table
 # TODO: Make background subtraction optional
 # TODO: Clean up at end
 
@@ -174,7 +174,7 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 	lastRoi = numRois-1
 	rm.select(lastRoi) # starts at 0
 	rm.rename(lastRoi, "aggregates " + ch1Name)
-	rm.runCommand("Set Color", "yellow")
+	#rm.runCommand("Set Color", "yellow")
 	rm.runCommand("Deselect")
 
 	# per-cell measurements
@@ -183,28 +183,39 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 	# how many cells do we have?
 	# assumptions: 1 background ROI, 1 multipoint ROI, 3 ROIs per cell
 	numCells = (numRois - 2)/3
- 	if numCells % 3 != 0:
+ 	if (numRois - 2) % 3 != 0:
 		IJ.log("Skipped image " + fileName + " because it has an invalid number of ROIs.")
 		return
 	
+	cellAreas = zeros(numCells, "d")
+	cytoAreas = zeros(numCells, "d")
+	aggCounts = zeros(numCells, "i")
+	aggsCyto = PointRoi()
+	
+	# collect per-cell data
 	for cell in range(0, numCells):
 		
 		cellNum = cell + 1
 		
 		# the first cell ROI is index 2.
-		cellRoi = cell + 2
-		rm.select(cellRoi)
+		cellRoiNum = cell * 2 + 2
+		cellRoi = rm.getRoi(cellRoiNum)
 		cellStat = cellRoi.getStatistics()
 		cellArea = cellStat.area
-		IJ.log("Cell " + cellNum + " area= " + cellArea)
+		IJ.log("Cell " + str(cellNum) + " area= " + str(cellArea))
 		
 		# the first cytoplasm ROI is after the background and all of the cell + nucleus ROIs
-		cytoRoi = numCells * 2 + cell + 1
-		rm.select(cytoRoi)
+		cytoRoiNum = numCells * 2 + cell + 1
+		cytoRoi = rm.getRoi(cytoRoiNum)
 		cytoStat = cytoRoi.getStatistics()
 		cytoArea = cytoStat.area
-		IJ.log("Cytoplasm " + cellNum + " area= " + cytoArea)
+		# TODO: Fix error here, NoneType object has no attribute getCount
+		#aggsInCyto.add = roi_1.containedPoints(cytoRoi)
+		#aggCount = aggsInCyto.getCount(0)
+
+		# IJ.log("Cytoplasm " + str(cellNum) + "contains " + str(len(aggsInCyto)) + " puncta in area = " + str(cytoArea))
 		
+		IJ.log("Cytoplasm " + str(cellNum) + " contains puncta in area = " + str(cytoArea))
 		
 	# collect results in table
 	# convert user-supplied distance in pixels to calibrated units for results 
