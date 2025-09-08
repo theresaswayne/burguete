@@ -119,10 +119,7 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 	imp = BF.openImagePlus(os.path.join(currentDir, fileName))
 	imp = imp[0]
 
-	# getDimensions(width, height, channels, slices, frames)
-
 	IJ.log("Computing Max Intensity Projection")
-
 	if imp.getDimensions()[3] > 1:
 		imp_max = ZProjector.run(imp,"max")
 	else:
@@ -131,14 +128,11 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 	ip1 = extract_channel(imp_max, ch1Name, Channel_1)
 
 	IJ.log("Subtracting background")
-
 	imp1 = back_subtraction(ip1, radius_background)
 	imp1 = ImagePlus(ch1Name, ip1)
 	
 	IJ.log("Finding Peaks")
-
 	ip1_1, peaks_1 = find_peaks(imp1, sigmaSmaller, sigmaLarger, minPeakValueCh1)
-			
 	roi_1 = PointRoi()
 
 	# A temporary array of integers, one per dimension the image has
@@ -158,15 +152,13 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 	  peaksTable.addValue("X",p_1[0])
 	  peaksTable.addValue("Y",p_1[1])
 
-
 	# load cell ROIs
 	rm = RoiManager.getInstance()
 	if not rm:
 	  rm = RoiManager()
 	rm.reset()
 
-	baseName = os.path.splitext(fileName)[0]
-	
+	baseName = os.path.splitext(fileName)[0]	
 	# strip off the -MaxIP
 	roiName = baseName[:-6] + "_RoiSet_Cyto_Rois.zip"
 	IJ.log("Opening ROI set " + roiName)
@@ -175,29 +167,48 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 	# will probably throw errors if empty
 	IJ.log("Adding ROIs")
 	rm.addRoi(roi_1)
-
 	rm.runCommand(imp1, "Show All")
 	# Also show the image with the PointRoi on it:  
 	imp.show()  
-
 	numRois = rm.getCount()
 	lastRoi = numRois-1
 	rm.select(lastRoi) # starts at 0
 	rm.rename(lastRoi, "aggregates " + ch1Name)
 	rm.runCommand("Set Color", "yellow")
-
 	rm.runCommand("Deselect")
-	#sel = rm.selected()
 
-	# IJ.log("ROI count = " + str(tot))
-
-
-
-	#rm.runCommand("save selected", os.path.join(folder, "temp.zip"))
+	# per-cell measurements
+	# how many peaks are within each cytosol ROI
 	
+	# how many cells do we have?
+	# assumptions: 1 background ROI, 1 multipoint ROI, 3 ROIs per cell
+	numCells = (numRois - 2)/3
+ 	if numCells % 3 != 0:
+		IJ.log("Skipped image " + fileName + " because it has an invalid number of ROIs.")
+		return
+	
+	for cell in range(0, numCells):
+		
+		cellNum = cell + 1
+		
+		# the first cell ROI is index 2.
+		cellRoi = cell + 2
+		rm.select(cellRoi)
+		cellStat = cellRoi.getStatistics()
+		cellArea = cellStat.area
+		IJ.log("Cell " + cellNum + " area= " + cellArea)
+		
+		# the first cytoplasm ROI is after the background and all of the cell + nucleus ROIs
+		cytoRoi = numCells * 2 + cell + 1
+		rm.select(cytoRoi)
+		cytoStat = cytoRoi.getStatistics()
+		cytoArea = cytoStat.area
+		IJ.log("Cytoplasm " + cellNum + " area= " + cytoArea)
+		
+		
+	# collect results in table
 	# convert user-supplied distance in pixels to calibrated units for results 
 	cal = imp.getCalibration()
-
 	table = ResultsTable()
 	table.incrementCounter()
 	table.addValue("Number of %s Markers" %(ch1Name), roi_1.getCount(0))
