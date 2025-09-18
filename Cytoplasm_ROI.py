@@ -3,10 +3,11 @@
 #@ String  (label = "File extension", value=".zip") ext
 #@ String  (label = "File name contains", value = "RoiSet") containString
 #@ Integer  (label = "ROIs to skip at beginning", value = "1") skipRois
+#@ Integer (label = "# Pixels to dilate nucleus before creating cytoplasm", value = "3") dilate
 #@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
 
 # Cytoplasm_ROI.py
-# Given an ROIset of a prescribed format, containing nucleis ad whole cell, 
+# Given an ROIset of a prescribed format, containing nucleis and whole cell, 
 # adds new ROIs for cytoplasm only
 # ------- EXPECTED ROISet FORMAT ----------
 # optional: 1st ROI = background measurement
@@ -21,6 +22,7 @@ from ij.plugin.filter import RankFilters
 import net.imagej.ops
 from net.imglib2.view import Views
 from net.imglib2.img.display.imagej import ImageJFunctions as IL
+from ij.process import ImageStatistics as IS
 from net.imglib2.algorithm.dog import DogDetection
 from ij.gui import PointRoi
 from jarray import zeros
@@ -32,13 +34,15 @@ from ij.gui import GenericDialog
 import os
 from loci.plugins import BF
 from jarray import array
+from ij.measure import ResultsTable
 
-def process(srcDir, dstDir, currentDir, fileName, keepDirectories, skip):
+def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, dilate, table):
 	
  	IJ.run("Close All", "")
 	
-	imp = IJ.createImage("Dummy", "8-bit black", 2048, 2048, 1) # necessary to avoid RoiMgr errors
-	imp.show()
+	table = ResultsTable()
+	imp = IJ.getImage() # necessary to avoid RoiMgr errors
+
 
 	rm = RoiManager.getInstance()
 	if not rm:
@@ -64,6 +68,10 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, skip):
  	cellCount = 1
  	for RoiIndex in range(startIndex, endIndex, 2): # if we skip the first ROI, indices will be 1, 3, etc
 		IJ.log("Processing ROI index " + str(RoiIndex))
+		rm.select(RoiIndex)
+		IJ.run("Enlarge...", "enlarge="+str(dilate))
+		#RoiEnlarger.enlarge(imp, 20)
+		rm.runCommand(imp,"Update")
  		rm.rename(RoiIndex, "Nucl_" + str(cellCount))
 		rm.rename(RoiIndex+1, "Cell_" + str(cellCount))
 		cellRois = array([RoiIndex, RoiIndex+1], 'i')
@@ -76,14 +84,38 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, skip):
  		IJ.log("There are now " + str(newTotal) + " ROIs")
  		rm.rename(newTotal-1, "Cyto_" + str(cellCount))
  		cellCount = cellCount + 1
- 		
-	# save the updated list
+ 	
+ 	
+ 	# measure area
+ 	numRois = rm.getCount()
+ 	
+ 	for RoiIndex in range(0, numRois):
+	 		
+	 	# add a line to the results table
+		table.incrementCounter()
+		table.addValue("Filename", fileName)
+		
+		rm.select(RoiIndex);
+		roi = imp.getRoi()
+		roiName = roi.getName()
+		table.addValue("ROI name", roiName)
+		rm.runCommand(imp,"Measure");
+		stats = imp.getStatistics(IS.AREA)
+		#IJ.log("area: %s" %(stats.area))
+	
+		# Add to results table
+		table.addValue("ROI area",stats.area)
+		rm.deselect() # make sure nothing else selected
+
+	# save the updated ROIs and area table
 	saveDir = currentDir.replace(srcDir, dstDir) if keepDirectories else dstDir
 	if not os.path.exists(saveDir):
 		os.makedirs(saveDir)
 	IJ.log("Saving to" + saveDir)
 	baseName = os.path.splitext(fileName)[0]
+	rm.deselect() # make sure nothing else selected
 	rm.save(os.path.join(saveDir, baseName + "_Cyto_Rois.zip"))
+	table.save(os.path.join(saveDir, baseName + "_RoiAreas.csv"))
 
 
 def run():
@@ -93,6 +125,9 @@ def run():
 	IJ.log("\\Clear")
 	IJ.log("Processing ROIsets")
 	
+	imp = IJ.createImage("Dummy", "8-bit black", 2048, 2048, 1) # necessary to avoid RoiMgr errors
+	imp.show()
+		
 	for root, directories, filenames in os.walk(srcDir):
 		filenames.sort();
 	for filename in filenames:
@@ -102,7 +137,7 @@ def run():
 		# Check for file name pattern
 		if containString not in filename:
 			continue
-		process(srcDir, dstDir, root, filename, keepDirectories, skipRois)
+		process(imp, srcDir, dstDir, root, filename, keepDirectories, skipRois, dilate, table)
 
 	rm = RoiManager.getInstance()
 	if not rm:

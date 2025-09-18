@@ -1,0 +1,233 @@
+#@ File    (label = "Input directory", style = "directory") srcFile
+#@ File    (label = "Output directory", style = "directory") dstFile
+#@ String  (label = "File extension", value=".nd2") ext
+#@ String  (label = "File name contains", value = "") containString
+#@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
+
+# Find aggregates in a single channel using a Difference of Gaussians detector
+
+# Based on https://github.com/bioimage-analysis/find_close_peaks by Cedric Espenel, Stanford University
+# updated by Theresa Swayne, Columbia University, 2022, 2024, 2025
+# Saves results, log, and ROI manager point selections
+
+# TODO: cycle through ROIs, measure areas IN MICRONS, find aggregates within each ROI, write table
+# TODO: Make background subtraction optional
+# TODO: Clean up at end
+
+from ij import IJ, ImagePlus, ImageStack
+from ij.plugin import ZProjector
+from ij.plugin.filter import RankFilters
+from ij.plugin.filter import BackgroundSubtracter
+import net.imagej.ops
+from net.imglib2.view import Views
+from net.imglib2.img.display.imagej import ImageJFunctions as IL
+from net.imglib2.algorithm.dog import DogDetection
+from ij.gui import PointRoi
+from jarray import zeros
+from ij.measure import ResultsTable
+from math import sqrt
+from java.awt import Color
+from ij.plugin.frame import RoiManager
+from ij.gui import GenericDialog
+import os
+from loci.plugins import BF
+
+def distance(peak_1, peak_2):
+	return sqrt((peak_2[1] - peak_1[1]) * (peak_2[1] - peak_1[1]) + (peak_2[0] - peak_1[0]) * (peak_2[0] - peak_1[0]))
+
+def getOptions(): # in pixels
+	gd = GenericDialog("Options")
+	gd.addStringField("Name of aggregate channel: ", "FUS");
+	gd.addNumericField("Channel number for aggregate channel", 3, 0)
+	#gd.addNumericField("radius_background", 100, 0)
+ 	gd.addNumericField("Min peak width (sigma) in calibrated units", 1, 2)
+ 	gd.addNumericField("Max peak width (sigma) in calibrated units", 5, 2)
+  	gd.addNumericField("minPeakValue aggregate channel", 400, 0)
+  	gd.showDialog()
+	ch1Name = gd.getNextString()
+	Channel_1 = gd.getNextNumber()
+	#radius_background = gd.getNextNumber()
+  	sigmaSmaller = gd.getNextNumber()
+  	sigmaLarger = gd.getNextNumber()
+  	minPeakValueCh1 = gd.getNextNumber()
+
+  	#return int(Channel_1), int(Channel_2), radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist
+  	return ch1Name, int(Channel_1), sigmaSmaller, sigmaLarger, minPeakValueCh1
+
+def extract_channel(imp_max, ch1Name, Channel_1):
+
+	# convert channel into floating-point image processor
+	stack = imp_max.getImageStack()
+	ch_1 = ImageStack(imp_max.width, imp_max.height)
+	ch_1.addSlice(str(Channel_1), stack.getProcessor(Channel_1))
+	ch1 = ImagePlus(ch1Name + str(Channel_1), ch_1)
+	ch1_1 = ch1.duplicate()
+	ip1 = ch1_1.getProcessor().convertToFloat()
+	
+	return ip1
+
+
+def back_subtraction(ip1, radius_background):
+	# Background subtraction to correct for large-scale background variation
+	bgs=BackgroundSubtracter()
+	bgs.rollingBallBackground(ip1, radius_background, False, False, True, True, True)
+
+	imp1 = ImagePlus("ch1 back sub", ip1)
+
+	return imp1
+
+def find_peaks(imp1, sigmaSmaller, sigmaLarger, minPeakValueCh1):
+	# FIND PEAKS
+	# sigmaSmaller ==> Size of the smaller dots (in calibrated units)
+	# sigmaLarger ==> Size of the bigger dots (in calibrated units)
+	# minPeakValue ==> Intensity above which to look for dots
+	
+	# Preparation first channel
+	ip1_1 = IL.wrapReal(imp1)
+	ip1E = Views.extendMirrorSingle(ip1_1)
+	imp1.show()
+
+	# calibration = [1.0 for i in range(ip1_1.numDimensions())]
+	cal = imp1.getCalibration()
+	calibration = [cal.pixelWidth] # must be a double array 
+	extremaType = DogDetection.ExtremaType.MINIMA
+	normalizedMinPeakValue = False
+
+	dog_1 = DogDetection(ip1E, ip1_1, calibration, sigmaSmaller, sigmaLarger,
+	  				   extremaType, minPeakValueCh1, normalizedMinPeakValue)
+
+	peaks_1 = dog_1.getPeaks()
+
+	return ip1_1, peaks_1
+
+#def process(srcDir, dstDir, currentDir, fileName, keepDirectories, Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist):
+def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Channel_1, sigmaSmaller, sigmaLarger, minPeakValueCh1):
+ 	IJ.run("Close All", "")
+
+ 	# Opening the image
+ 	IJ.log("Opening image " + fileName)
+ 	#imp = IJ.openImage(os.path.join(currentDir, fileName))
+	#imp = IJ.getImage() # if image is already open
+	imp = BF.openImagePlus(os.path.join(currentDir, fileName)) # if image is in a proprietary format like nd2
+	imp = imp[0]
+
+	#IJ.log("Computing Max Intensity Projection")
+	#if imp.getDimensions()[3] > 1:
+	#	imp_max = ZProjector.run(imp,"max")
+	#else:
+	#	imp_max = imp
+
+	ip1 = extract_channel(imp, ch1Name, Channel_1)
+
+	#IJ.log("Subtracting background")
+	#imp1 = back_subtraction(ip1, radius_background)
+	imp1 = ImagePlus(ch1Name, ip1)
+	
+	IJ.log("Finding Peaks")
+	ip1_1, peaks_1 = find_peaks(imp1, sigmaSmaller, sigmaLarger, minPeakValueCh1)
+	roi_1 = PointRoi()
+
+	# A temporary array of integers, one per dimension the image has
+	p_1 = zeros(ip1_1.numDimensions(), 'i')
+
+	# set up a table for coordinates
+	peaksTable = ResultsTable()
+
+	# Load every peak as a point in the PointRoi
+	for peak in peaks_1:
+	  # Read peak coordinates into an array of integers
+	  peak.localize(p_1)
+	  roi_1.addPoint(imp, p_1[0], p_1[1])
+	  # print("adding point " + str(p_1[0]) + "," + str(p_1[1]))
+	  peaksTable.incrementCounter()
+	  peaksTable.addValue("Channel",ch1Name)
+	  peaksTable.addValue("X",p_1[0])
+	  peaksTable.addValue("Y",p_1[1])
+
+	# load cell ROIs
+	rm = RoiManager.getInstance()
+	if not rm:
+	  rm = RoiManager()
+	rm.reset()
+
+	baseName = os.path.splitext(fileName)[0]	
+	# strip off the -MaxIP
+
+	IJ.log("Adding ROIs")
+	rm.addRoi(roi_1)
+	rm.runCommand(imp1, "Show All")
+	# Also show the image with the PointRoi on it:  
+	imp1.show()  
+	numRois = rm.getCount()
+	#lastRoi = numRois-1
+	#rm.select(lastRoi) # starts at 0
+	#rm.rename(lastRoi, "aggregates " + ch1Name)
+	#rm.runCommand("Set Color", "yellow")
+	rm.runCommand("Deselect")
+
+
+	# collect results in table
+	# convert user-supplied distance in pixels to calibrated units for results 
+	cal = imp.getCalibration()
+	table = ResultsTable()
+	table.incrementCounter()
+	table.addValue("Number of %s Markers" %(ch1Name), roi_1.getCount(0))
+
+	table.show("Results of Analysis")
+
+	saveDir = currentDir.replace(srcDir, dstDir) if keepDirectories else dstDir
+	if not os.path.exists(saveDir):
+		os.makedirs(saveDir)
+	IJ.log("Saving to" + saveDir)
+	table.save(os.path.join(saveDir, fileName + "_Results.csv"))
+	peaksTable.save(os.path.join(saveDir, fileName + "_Peaks.csv"))
+  	IJ.selectWindow("Log")
+  	IJ.saveAs("Text", os.path.join(saveDir, "Peaks_Log.txt"));
+
+	# save ROIs
+	# note that a single roi cannot be saved as zip; must be .roi
+	# baseName = os.path.splitext(fileName)[0]
+	
+	if numRois == 1:
+		rm.save(os.path.join(saveDir, baseName + "_rois.roi"))
+	elif numRois > 1:	
+		rm.save(os.path.join(saveDir, baseName + "_rois.zip"))
+	else:
+		IJ.log("No aggregates found in " + baseName)
+
+def run():
+  srcDir = srcFile.getAbsolutePath()
+  dstDir = dstFile.getAbsolutePath()
+  #Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist = getOptions()
+  ch1Name, Channel_1, sigmaSmaller, sigmaLarger, minPeakValueCh1 = getOptions()
+  
+  IJ.log("\\Clear")
+  IJ.log("Processing batch puncta detection")
+  IJ.log("options used:" \
+  		+ "\n" + "channel 1:" + ch1Name + ", " + str(Channel_1) \
+  		+ "\n" + "Smaller Sigma in um:"+ str(sigmaSmaller) \
+  		+ "\n" + "Larger Sigma in um:"+str(sigmaLarger) \
+  		+ "\n" + "Min Peak Value for channel 1:"+str(minPeakValueCh1))
+  for root, directories, filenames in os.walk(srcDir):
+    filenames.sort();
+    for filename in filenames:
+      # Check for file extension
+      if not filename.endswith(ext):
+        continue
+      # Check for file name pattern
+      if containString not in filename:
+        continue
+      #process(srcDir, dstDir, root, filename, keepDirectories, Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist)
+      process(srcDir, dstDir, root, filename, keepDirectories, ch1Name, Channel_1, sigmaSmaller, sigmaLarger, minPeakValueCh1)
+      
+  # clean up
+  rm = RoiManager.getInstance()
+  if not rm:
+	rm = RoiManager()
+  rm.reset()
+  
+  IJ.run("Close All", "")
+  IJ.log("Done!")
+
+run()
+
