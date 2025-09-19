@@ -32,6 +32,11 @@ mergedDataWithNames <- tibble(filename = files) %>% # tibble holding file names
 mergedDataFlat <- unnest(mergedDataWithNames, cols = c(file_contents))
 
 
+# --- Special use --- Correct the counts for a limitation in the original script that counts an extra point at 0,0 -------
+# subtract 1 from columns 2-5
+# mergedDataFlat[2-5] <- mergedDataFlat[2-5] - 3
+# mergedDataFlat<- mergedDataFlat %>% mutate(across(2:5,~.-1))
+
 # Write an output file of all the merged data ----------
 
 outputFile = paste(basename(inputFolder), "merged", finalText) # spaces will be inserted

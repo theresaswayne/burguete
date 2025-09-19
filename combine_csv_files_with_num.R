@@ -1,8 +1,13 @@
 # combine_csv_files.R
 # merges a batch of csv files, putting the filename in a new column
-# Requirement: All files must be within a single folder and the name must contain the pattern noted in line 20
+# Requirement: All files must be within a single folder and the names of files to be processed must contain the pattern in the finalText variable
 # adapted from http://serialmentor.com/blog/2016/6/13/reading-and-combining-many-tidy-data-files-in-R
 # this version also adds a column for the row number (which will represent the timepoint)
+# Theresa Swayne, Columbia University, 2024-25
+# -------- Suggested text for acknowledgement -----------
+#   "These studies used the Confocal and Specialized Microscopy Shared Resource 
+#   of the Herbert Irving Comprehensive Cancer Center at Columbia University, 
+#   funded in part through the NIH/NCI Cancer Center Support Grant P30CA013696."
 
 # Setup -------
 require(tidyverse)

@@ -5,14 +5,15 @@
 #@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
 
 # Find aggregates in a single channel using a Difference of Gaussians detector
-
-# Based on https://github.com/bioimage-analysis/find_close_peaks by Cedric Espenel, Stanford University
-# updated by Theresa Swayne, Columbia University, 2022, 2024, 2025
 # Saves results, log, and ROI manager point selections
 
-# TODO: cycle through ROIs, measure areas IN MICRONS, find aggregates within each ROI, write table
-# TODO: Make background subtraction optional
-# TODO: Clean up at end
+# Based on https://github.com/bioimage-analysis/find_close_peaks by Cedric Espenel
+# Theresa Swayne, Columbia University, 2022, 2024, 2025
+
+# -------- Suggested text for acknowledgement -----------
+#   "These studies used the Confocal and Specialized Microscopy Shared Resource 
+#   of the Herbert Irving Comprehensive Cancer Center at Columbia University, 
+#   funded in part through the NIH/NCI Cancer Center Support Grant P30CA013696."
 
 from ij import IJ, ImagePlus, ImageStack
 from ij.plugin import ZProjector
@@ -144,7 +145,7 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 	  peaksTable.addValue("X",p_1[0])
 	  peaksTable.addValue("Y",p_1[1])
 
-	# load cell ROIs
+	# create ROIs in the Manager
 	rm = RoiManager.getInstance()
 	if not rm:
 	  rm = RoiManager()

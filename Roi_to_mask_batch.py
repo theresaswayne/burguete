@@ -7,6 +7,12 @@
 # ROI_to_mask_batch.py
 # Given a folder of ROI Manager sets (.roi) and multichannel single-slice images of the same name,
 #   save the masks and a table of the mask areas
+# Theresa Swayne, Columbia University, 2024, 2025
+
+# -------- Suggested text for acknowledgement -----------
+#   "These studies used the Confocal and Specialized Microscopy Shared Resource 
+#   of the Herbert Irving Comprehensive Cancer Center at Columbia University, 
+#   funded in part through the NIH/NCI Cancer Center Support Grant P30CA013696."
 
 # ---- Import packages
 

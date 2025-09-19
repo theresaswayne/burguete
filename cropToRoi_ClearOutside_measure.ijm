@@ -6,6 +6,11 @@
 // cropToRoi_ClearOutside.ijm
 // ImageJ/Fiji macro by Theresa Swayne, Columbia University, 2017-2018
 //
+// -------- Suggested text for acknowledgement -----------
+//   "These studies used the Confocal and Specialized Microscopy Shared Resource 
+//   of the Herbert Irving Comprehensive Cancer Center at Columbia University, 
+//   funded in part through the NIH/NCI Cancer Center Support Grant P30CA013696."
+
 // Input: An image or stack, and a set of ROIs in the ROI manager 
 // Output: The following items are saved in the same folder as the input image: 
 // -- A cropped image or stack for each ROI 
