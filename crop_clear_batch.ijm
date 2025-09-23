@@ -24,8 +24,9 @@
 //		See ImageJ wiki for more script parameter options.
 //		Remember to pass your parameters into the processFolder and processFile functions!
 //  Run the script in Fiji. 
-//	Limitation -- cannot have >1 dots in the filename. Cannot have > 9 ROIs per file.
-// 	
+//	Limitations -- cannot have >1 dots in the filename. 
+//		Cannot have > 9 Cells per file.
+// 		Each image must have an ROIset.
 
 // ---- Setup ----
 
@@ -136,7 +137,7 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	
 	print("Saved snapshot.");
 	
-	// clean up snapshot images
+	// close images
 	if (isOpen(flatID)) {
 		selectImage(flatID);
 		close();
@@ -180,8 +181,10 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	// ---------- CLEANUP
 	
 	run("Select None");
-	print("Saved",numROIs,"cropped areas.");
-	//close();
+	print("Saved",numROIs,"cropped ROIs.");
+	selectImage(id);
+	close();
+	roiManager("Reset");
 
 
 } // end of processFile function

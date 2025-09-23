@@ -1,13 +1,15 @@
-#@ File    (label = "Input directory", style = "directory") srcFile
+#@ File    (label = "Input image directory", style = "directory") srcFile
+#@ File    (label = "Input ROIset directory", style = "directory") roiFile
 #@ File    (label = "Output directory", style = "directory") dstFile
-#@ String  (label = "File extension", value=".nd2") ext
-#@ String  (label = "File name contains", value = "") containString
+#@ String  (label = "Image file extension", value=".nd2") ext
+#@ String  (label = "Image file name contains", value = "") containString
 #@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
 
 # Find aggregates in a single channel using a Difference of Gaussians detector
 # Uses a saved ROI set to collect per-cell data including aggregate count, cell and cytoplasm area
+# Limitations: Each image must have an ROI set
 # 
-# ------- ROISet FORMAT ----------t
+# ------- ROISet FORMAT ----------
 # ROI filename MUST BE imagename_RoiSet_Cyto_Rois.zip (script will ignore the -MaxIP)
 # 1st ROI = background measurement (ignored here)
 # 2nd and 3rd, 4th and 5th, etc.: nucleus (Nucl_1) and whole cell (Cell_1), respectively, for cell # 1, 2, etc.
@@ -18,9 +20,6 @@
 # updated by Theresa Swayne, Columbia University, 2022, 2024, 2025
 # Saves results, log, and ROI manager point selections
 
-# TODO: cycle through ROIs, measure areas IN MICRONS, find aggregates within each ROI, write table
-# TODO: Make background subtraction optional
-# TODO: Clean up at end
 
 from ij import IJ, ImagePlus, ImageStack
 from ij.plugin import ZProjector
@@ -30,7 +29,7 @@ import net.imagej.ops
 from net.imglib2.view import Views
 from net.imglib2.img.display.imagej import ImageJFunctions as IL
 from net.imglib2.algorithm.dog import DogDetection
-from ij.gui import PointRoi
+from ij.gui import Roi, PointRoi
 from jarray import zeros
 from ij.measure import ResultsTable
 from math import sqrt
@@ -40,6 +39,7 @@ from ij.gui import GenericDialog
 import os
 from loci.plugins import BF
 
+
 def distance(peak_1, peak_2):
 	return sqrt((peak_2[1] - peak_1[1]) * (peak_2[1] - peak_1[1]) + (peak_2[0] - peak_1[0]) * (peak_2[0] - peak_1[0]))
 
@@ -47,20 +47,20 @@ def getOptions(): # in pixels
 	gd = GenericDialog("Options")
 	gd.addStringField("Name of aggregate channel: ", "FUS");
 	gd.addNumericField("Channel number for aggregate channel", 3, 0)
-	gd.addNumericField("radius_background", 100, 0)
+	#gd.addNumericField("radius_background", 100, 0)
  	gd.addNumericField("Min peak width (sigma) in calibrated units", 1, 2)
  	gd.addNumericField("Max peak width (sigma) in calibrated units", 5, 2)
-  	gd.addNumericField("minPeakValue aggregate channel", 400, 0)
+  	gd.addNumericField("minPeakValue aggregate channel", 600, 0)
   	gd.showDialog()
 	ch1Name = gd.getNextString()
 	Channel_1 = gd.getNextNumber()
-	radius_background = gd.getNextNumber()
+	#radius_background = gd.getNextNumber()
   	sigmaSmaller = gd.getNextNumber()
   	sigmaLarger = gd.getNextNumber()
   	minPeakValueCh1 = gd.getNextNumber()
 
   	#return int(Channel_1), int(Channel_2), radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist
-  	return ch1Name, int(Channel_1), radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1
+  	return ch1Name, int(Channel_1), sigmaSmaller, sigmaLarger, minPeakValueCh1
 
 def extract_channel(imp_max, ch1Name, Channel_1):
 
@@ -109,7 +109,7 @@ def find_peaks(imp1, sigmaSmaller, sigmaLarger, minPeakValueCh1):
 	return ip1_1, peaks_1
 
 #def process(srcDir, dstDir, currentDir, fileName, keepDirectories, Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist):
-def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Channel_1, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1):
+def process(srcDir, roiDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Channel_1, sigmaSmaller, sigmaLarger, minPeakValueCh1):
  	IJ.run("Close All", "")
 
  	# Opening the image
@@ -127,8 +127,8 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 
 	ip1 = extract_channel(imp_max, ch1Name, Channel_1)
 
-	IJ.log("Subtracting background")
-	imp1 = back_subtraction(ip1, radius_background)
+	#IJ.log("Subtracting background")
+	#imp1 = back_subtraction(ip1, radius_background)
 	imp1 = ImagePlus(ch1Name, ip1)
 	
 	IJ.log("Finding Peaks")
@@ -162,68 +162,77 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 	# strip off the -MaxIP
 	roiName = baseName[:-6] + "_RoiSet_Cyto_Rois.zip"
 	IJ.log("Opening ROI set " + roiName)
-	rm.runCommand("Open", (os.path.join(currentDir, roiName)))
-	# create point ROI
-	# will probably throw errors if empty
-	IJ.log("Adding ROIs")
-	rm.addRoi(roi_1)
-	rm.runCommand(imp1, "Show All")
-	# Also show the image with the PointRoi on it:  
-	imp.show()  
-	numRois = rm.getCount()
-	lastRoi = numRois-1
-	rm.select(lastRoi) # starts at 0
-	rm.rename(lastRoi, "aggregates " + ch1Name)
-	#rm.runCommand("Set Color", "yellow")
-	rm.runCommand("Deselect")
+	rm.runCommand("Open", (os.path.join(roiDir, roiName)))
 
 	# per-cell measurements
 	# how many peaks are within each cytosol ROI
 	
 	# how many cells do we have?
-	# assumptions: 1 background ROI, 1 multipoint ROI, 3 ROIs per cell
-	numCells = (numRois - 2)/3
- 	if (numRois - 2) % 3 != 0:
+	# assumptions: 1 background ROI, 3 ROIs per cell
+	numRois = rm.getCount()
+	numCells = (numRois - 1)/3
+	if (numRois - 1) % 3 != 0:
 		IJ.log("Skipped image " + fileName + " because it has an invalid number of ROIs.")
 		return
 	
 	cellAreas = zeros(numCells, "d")
 	cytoAreas = zeros(numCells, "d")
-	aggCounts = zeros(numCells, "i")
-	aggsCyto = PointRoi()
+	#aggCounts = zeros(numCells, "i")
+	
+	# collect results in table
+	# convert user-supplied distance in pixels to calibrated units for results 
+	cal = imp.getCalibration()
+	table = ResultsTable()
 	
 	# collect per-cell data
 	for cell in range(0, numCells):
 		
 		cellNum = cell + 1
+		aggsInCyto = PointRoi()
 		
 		# the first cell ROI is index 2.
-		cellRoiNum = cell * 2 + 2
-		cellRoi = rm.getRoi(cellRoiNum)
-		cellStat = cellRoi.getStatistics()
-		cellArea = cellStat.area
-		IJ.log("Cell " + str(cellNum) + " area= " + str(cellArea))
+		#cellRoiNum = cell * 2 + 2
+		#cellRoi = rm.getRoi(cellRoiNum)
+		#cellStat = cellRoi.getStatistics()
+		#cellArea = cellStat.area
+		#IJ.log("Cell " + str(cellNum) + " area= " + str(cellArea))
 		
 		# the first cytoplasm ROI is after the background and all of the cell + nucleus ROIs
 		cytoRoiNum = numCells * 2 + cell + 1
 		cytoRoi = rm.getRoi(cytoRoiNum)
 		cytoStat = cytoRoi.getStatistics()
 		cytoArea = cytoStat.area
-		# TODO: Fix error here, NoneType object has no attribute getCount
-		#aggsInCyto.add = roi_1.containedPoints(cytoRoi)
-		#aggCount = aggsInCyto.getCount(0)
+		cytoName = cytoRoi.getName()
 
-		# IJ.log("Cytoplasm " + str(cellNum) + "contains " + str(len(aggsInCyto)) + " puncta in area = " + str(cytoArea))
+		# count points inside the cytoplasm but avoid error if there are none
+		try:
+			aggsInCyto = roi_1.containedPoints(cytoRoi)
+			aggCount = aggsInCyto.getCount(0)
+		except AttributeError, e1:
+			IJ.log("There are no points inside ROI " + str(cellNum))
+			aggCount = 0
+		else:
+			IJ.log("Cytoplasm " + str(cellNum) + " contains " + str(aggCount) + " puncta in area = " + str(cytoArea))
+			IJ.log("Adding ROIs")
+			rm.addRoi(aggsInCyto)
+			numRois = rm.getCount()
+			lastRoi = numRois-1
+			rm.select(lastRoi) # starts at 0
+			rm.rename(lastRoi, "Aggs_" + ch1Name + "_" + str(cellNum))
+			rm.runCommand("Deselect")
+	
+		table.incrementCounter()
+		table.addValue("Cell ID", cellNum)
+		table.addValue("Cytoplasm Area", cytoArea)
+		table.addValue("Number of %s Puncta in Cytoplasm" %(ch1Name), aggCount)
 		
-		IJ.log("Cytoplasm " + str(cellNum) + " contains puncta in area = " + str(cytoArea))
-		
-	# collect results in table
-	# convert user-supplied distance in pixels to calibrated units for results 
-	cal = imp.getCalibration()
-	table = ResultsTable()
-	table.incrementCounter()
-	table.addValue("Number of %s Markers" %(ch1Name), roi_1.getCount(0))
+	rm.runCommand(imp1, "Show All")
+	# Also show the image with the PointRoi on it:  
+	imp.show()  
 
+	#rm.runCommand("Set Color", "yellow")
+	rm.runCommand("Deselect")
+	
 	table.show("Results of Analysis")
 
 	saveDir = currentDir.replace(srcDir, dstDir) if keepDirectories else dstDir
@@ -249,14 +258,15 @@ def process(srcDir, dstDir, currentDir, fileName, keepDirectories, ch1Name, Chan
 def run():
   srcDir = srcFile.getAbsolutePath()
   dstDir = dstFile.getAbsolutePath()
+  roiDir = roiFile.getAbsolutePath()
+  
   #Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist = getOptions()
-  ch1Name, Channel_1, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1 = getOptions()
+  ch1Name, Channel_1, sigmaSmaller, sigmaLarger, minPeakValueCh1 = getOptions()
   
   IJ.log("\\Clear")
   IJ.log("Processing batch Find_close_peaks")
   IJ.log("options used:" \
   		+ "\n" + "channel 1:" + ch1Name + ", " + str(Channel_1) \
-  		+ "\n" + "Radius Background:"+ str(radius_background) \
   		+ "\n" + "Smaller Sigma in um:"+ str(sigmaSmaller) \
   		+ "\n" + "Larger Sigma in um:"+str(sigmaLarger) \
   		+ "\n" + "Min Peak Value for channel 1:"+str(minPeakValueCh1))
@@ -270,7 +280,7 @@ def run():
       if containString not in filename:
         continue
       #process(srcDir, dstDir, root, filename, keepDirectories, Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist)
-      process(srcDir, dstDir, root, filename, keepDirectories, ch1Name, Channel_1, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1)
+      process(srcDir, roiDir, dstDir, root, filename, keepDirectories, ch1Name, Channel_1, sigmaSmaller, sigmaLarger, minPeakValueCh1)
       
   # clean up
   rm = RoiManager.getInstance()
