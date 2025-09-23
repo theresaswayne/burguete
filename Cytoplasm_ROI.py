@@ -7,13 +7,19 @@
 #@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
 
 # Cytoplasm_ROI.py
-# Given an ROIset of a prescribed format, containing nucleis and whole cell, 
+# Given an ROIset of a prescribed format, containing nucleus and whole cell, 
 # adds new ROIs for cytoplasm only
+# measures area of cell and cytoplasm in pixels
 # ------- EXPECTED ROISet FORMAT ----------
 # optional: 1st ROI = background measurement
 # 2nd and 3rd: nucleus and whole cell, respectively, for cell # 1
 # 4th and 5th, etc.: nucleus and cell for subsequent cells
 
+# Theresa Swayne, 2025
+#  -------- Suggested text for acknowledgement -----------
+#   "These studies used the Confocal and Specialized Microscopy Shared Resource 
+#   of the Herbert Irving Comprehensive Cancer Center at Columbia University, 
+#   funded in part through the NIH/NCI Cancer Center Support Grant P30CA013696."
 
 from ij import IJ, ImagePlus, ImageStack
 from ij.plugin import ZProjector
@@ -38,9 +44,8 @@ from ij.measure import ResultsTable
 
 def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, dilate, table):
 	
- 	IJ.run("Close All", "")
+ 	#IJ.run("Close All", "")
 	
-	table = ResultsTable()
 	imp = IJ.getImage() # necessary to avoid RoiMgr errors
 
 
@@ -111,11 +116,11 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 	saveDir = currentDir.replace(srcDir, dstDir) if keepDirectories else dstDir
 	if not os.path.exists(saveDir):
 		os.makedirs(saveDir)
-	IJ.log("Saving to" + saveDir)
+	IJ.log("Saving ROIs to" + saveDir)
 	baseName = os.path.splitext(fileName)[0]
 	rm.deselect() # make sure nothing else selected
 	rm.save(os.path.join(saveDir, baseName + "_Cyto_Rois.zip"))
-	table.save(os.path.join(saveDir, baseName + "_RoiAreas.csv"))
+	# table.save(os.path.join(saveDir, baseName + "_RoiAreas.csv"))
 
 
 def run():
@@ -127,7 +132,9 @@ def run():
 	
 	imp = IJ.createImage("Dummy", "8-bit black", 2048, 2048, 1) # necessary to avoid RoiMgr errors
 	imp.show()
-		
+	
+	table = ResultsTable()
+	
 	for root, directories, filenames in os.walk(srcDir):
 		filenames.sort();
 	for filename in filenames:
@@ -143,7 +150,11 @@ def run():
 	if not rm:
 		rm = RoiManager()
 	rm.reset()
+	
+	table.save(os.path.join(dstDir, "RoiAreas.csv"))
+	
 	IJ.run("Close All", "")
+	IJ.run("Clear Results")
 	IJ.log("Done!")
 
 run()

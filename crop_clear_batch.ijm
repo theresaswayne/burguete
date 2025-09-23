@@ -24,7 +24,7 @@
 //		See ImageJ wiki for more script parameter options.
 //		Remember to pass your parameters into the processFolder and processFile functions!
 //  Run the script in Fiji. 
-//	Limitation -- cannot have >1 dots in the filename
+//	Limitation -- cannot have >1 dots in the filename. Cannot have > 9 ROIs per file.
 // 	
 
 // ---- Setup ----
