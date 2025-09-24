@@ -29,22 +29,14 @@ require(tools) # for file name processing
 # text to filter for in the end of the file name
 finalText <- "Results.csv"
 # width of a pixel in um
-pixSize <- 0.1
+pixSize <- 0.1035718
 
 # ---- Input and output setup ----
 
 # Prompt for a file. No message will be displayed. Choose one of the files in the folder.
 selectedFile <- file.choose()
 inputFolder <- dirname(selectedFile) # the input is the parent of the selected file
-
-# Create an output folder with time-date stamp
-
-thisTime = format(Sys.time(),"%Y-%m-%d_%H%M")
-outputFolder <- file.path(inputFolder,paste0("Output_",thisTime))
-dir.create(outputFolder) # creates within the input folder if it does not already exist
-
-# Get names of CSV files in the folder
-
+outputFolder <- dirname(inputFolder) # parent of the input folder
 
 # get file names
 files <- dir(inputFolder, pattern = paste("*",finalText,sep=""))
@@ -60,10 +52,9 @@ mergedDataWithNames <- tibble(filename = files) %>% # tibble holding file names
                           locale = locale(encoding = "latin1"),
                           na = c("", "N/A"))))
 
-# sort by filename and add a column for the row number (timepoint) 
+# sort by filename  
 mergedDataWithNames <- mergedDataWithNames %>% 
-  arrange(filename) %>%
-  mutate(row_number = row_number())
+  arrange(filename)
 
 # unnest to make the list into a flat file again,
 # but it now has 1 extra column to hold the filename
@@ -89,8 +80,5 @@ outputData <- mergedDataFlat %>%
 # ---- Save results ----
 
 outputFile = paste(basename(inputFolder), " merged", finalText, sep = "")
-write_csv(outputData,file.path(outputFolder, outputFile))
-
-
-
+write_csv(mergedDataFlat,file.path(outputFolder, outputFile))
 
