@@ -80,5 +80,5 @@ outputData <- mergedDataFlat %>%
 # ---- Save results ----
 
 outputFile = paste(basename(inputFolder), " merged", finalText, sep = "")
-write_csv(mergedDataFlat,file.path(outputFolder, outputFile))
+write_csv(outputData,file.path(outputFolder, outputFile))
 
