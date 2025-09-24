@@ -273,6 +273,9 @@ def run():
   for root, directories, filenames in os.walk(srcDir):
     filenames.sort();
     for filename in filenames:
+      # skip dotfiles
+      if filename.startswith("."): 
+      	continue
       # Check for file extension
       if not filename.endswith(ext):
         continue
