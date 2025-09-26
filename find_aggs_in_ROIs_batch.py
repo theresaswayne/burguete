@@ -20,6 +20,10 @@
 # updated by Theresa Swayne, Columbia University, 2022, 2024, 2025
 # Saves results, log, and ROI manager point selections
 
+#  -------- Suggested text for acknowledgement -----------
+#   "These studies used the Confocal and Specialized Microscopy Shared Resource 
+#   of the Herbert Irving Comprehensive Cancer Center at Columbia University, 
+#   funded in part through the NIH/NCI Cancer Center Support Grant P30CA013696."
 
 from ij import IJ, ImagePlus, ImageStack
 from ij.plugin import ZProjector
