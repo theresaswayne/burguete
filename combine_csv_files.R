@@ -11,7 +11,7 @@
 
 # Setup -------
 require(tidyverse)
-finalText <- "Results.csv"
+finalText <- "calculations.csv"
 
 # ---- Prompt for a data folder ----
 # no message will be displayed. Choose one of the files in the folder
