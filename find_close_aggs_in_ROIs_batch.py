@@ -1,6 +1,6 @@
-#@ File    (label = "Input image directory", style = "directory") srcFile
-#@ File    (label = "Input ROIset directory", style = "directory") roiFile
-#@ File    (label = "Output directory", style = "directory") dstFile
+#@ File	(label = "Input image directory", style = "directory") srcFile
+#@ File	(label = "Input ROIset directory", style = "directory") roiFile
+#@ File	(label = "Output directory", style = "directory") dstFile
 #@ String  (label = "Image file extension", value=".nd2") ext
 #@ String  (label = "Image file name contains", value = "") containString
 #@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
@@ -153,16 +153,15 @@ def pointsInRoi(cellNumber, aggName, areaRoi, pointSet):
 			aggsInCyto = pointSet.containedPoints(areaRoi)
 			aggCount = aggsInCyto.getCount(0)
 		except AttributeError, e1:
-			IJ.log("There are no points inside ROI " + str(cellNum))
+			IJ.log("There are no points inside ROI " + str(cellNumber))
 			aggCount = 0
 		else:
-			IJ.log("Cytoplasm " + str(cellNum) + " contains " + str(aggCount) + " puncta of " + aggName + " in area = " + str(cytoArea))
-			IJ.log("Adding ROIs")
+			IJ.log("Cytoplasm " + str(cellNumber) + " contains " + str(aggCount) + " puncta of " + aggName)
 			roiMgr.addRoi(aggsInCyto)
 			numRois = roiMgr.getCount()
 			lastRoi = numRois-1
 			roiMgr.select(lastRoi) # starts at 0
-			roiMgr.rename(lastRoi, "Aggs_" + aggName + "_" + str(cellNum))
+			roiMgr.rename(lastRoi, "Aggs_" + aggName + "_" + str(cellNumber))
 			roiMgr.runCommand("Deselect")
 			
 		return aggsInCyto, aggCount
@@ -209,24 +208,24 @@ def process(srcDir, roiDir, dstDir, currentDir, fileName, keepDirectories, ch1Na
 
 	# Load every peak as a point in the PointRoi
 	for peak in peaks_1:
-	  # Read peak coordinates into an array of integers
-	  peak.localize(p_1)
-	  roi_1.addPoint(imp1, p_1[0], p_1[1])
-	  # print("adding point " + str(p_1[0]) + "," + str(p_1[1]))
-	  peaksTable.incrementCounter()
-	  peaksTable.addValue("Channel",ch1Name)
-	  peaksTable.addValue("X",p_1[0])
-	  peaksTable.addValue("Y",p_1[1])
+		# Read peak coordinates into an array of integers
+		peak.localize(p_1)
+		roi_1.addPoint(imp1, p_1[0], p_1[1])
+		# print("adding point " + str(p_1[0]) + "," + str(p_1[1]))
+		peaksTable.incrementCounter()
+		peaksTable.addValue("Channel",ch1Name)
+		peaksTable.addValue("X",p_1[0])
+		peaksTable.addValue("Y",p_1[1])
 
 	for peak in peaks_2:
-	  # Read peak coordinates into an array of integers
-	  peak.localize(p_2)
-	  roi_2.addPoint(imp2, p_2[0], p_2[1])
-	  peaksTable.incrementCounter()
-	  peaksTable.addValue("Channel",ch2Name)
-	  peaksTable.addValue("X",p_2[0])
-	  peaksTable.addValue("Y",p_2[1])
-	  
+		# Read peak coordinates into an array of integers
+		peak.localize(p_2)
+		roi_2.addPoint(imp2, p_2[0], p_2[1])
+		peaksTable.incrementCounter()
+		peaksTable.addValue("Channel",ch2Name)
+		peaksTable.addValue("X",p_2[0])
+		peaksTable.addValue("Y",p_2[1])
+	
 	# Check for close peaks
 
 	for peak_1 in peaks_1:
@@ -302,20 +301,20 @@ def process(srcDir, roiDir, dstDir, currentDir, fileName, keepDirectories, ch1Na
 		cytoArea = cytoStat.area
 		cytoName = cytoRoi.getName()
 		ch2CloseToCh1Name = ch2Name + "_close_to_" + ch1Name
-		ch1CloseToCh2Name = c1Name + "_close_to_" + ch2Name
+		ch1CloseToCh2Name = ch1Name + "_close_to_" + ch2Name
 
-		ch1AggsInCyto, ch1Count = pointsInRoi(cellNumber, ch1Name, cytoRoi, roi_1)
-		ch2AggsInCyto, ch2Count = pointsInRoi(cellNumber, ch2Name, cytoRoi, roi_2)
-		ch2CloseToCh1, ch2CloseToCh1Count = pointsInRoi(cellNumber, ch2CloseToCh1Name, cytoRoi, roi_3)
-		ch1CloseToCh2, ch1CloseToCh2Count = pointsInRoi(cellNumber, ch1CloseToCh2Name, cytoRoi, roi_4)
+		ch1AggsInCyto, ch1Count = pointsInRoi(cellNum, ch1Name, cytoRoi, roi_1)
+		ch2AggsInCyto, ch2Count = pointsInRoi(cellNum, ch2Name, cytoRoi, roi_2)
+		ch2CloseToCh1, ch2CloseToCh1Count = pointsInRoi(cellNum, ch2CloseToCh1Name, cytoRoi, roi_3)
+		ch1CloseToCh2, ch1CloseToCh2Count = pointsInRoi(cellNum, ch1CloseToCh2Name, cytoRoi, roi_4)
 		
 		table.incrementCounter()
 		table.addValue("Cell ID", cellNum)
 		table.addValue("Cytoplasm Area", cytoArea)
 		table.addValue("%s Puncta in Cytoplasm" %(ch1Name), ch1Count)
 		table.addValue("%s Puncta in Cytoplasm" %(ch2Name), ch2Count)
-		table.addValue("%s within %s um of %s" %(ch2Name, min_distance, ch1Name), ch2CloseToCh1Count)
-		table.addValue("%s within %s um of %s" %(ch1Name, min_distance, ch2Name), ch1CloseToCh2Count)
+		table.addValue("%s within %s um of %s" %(ch2Name, min_dist, ch1Name), ch2CloseToCh1Count)
+		table.addValue("%s within %s um of %s" %(ch1Name, min_dist, ch2Name), ch1CloseToCh2Count)
 
 	rm.runCommand(imp1, "Show All")
 	# Also show the image with the PointRoi on it:  
@@ -332,8 +331,8 @@ def process(srcDir, roiDir, dstDir, currentDir, fileName, keepDirectories, ch1Na
 	IJ.log("Saving to" + saveDir)
 	table.save(os.path.join(saveDir, fileName + "_Results.csv"))
 	peaksTable.save(os.path.join(saveDir, fileName + "_Peaks.csv"))
-  	IJ.selectWindow("Log")
-  	IJ.saveAs("Text", os.path.join(saveDir, "Peaks_Log.txt"));
+	IJ.selectWindow("Log")
+	IJ.saveAs("Text", os.path.join(saveDir, "Peaks_Log.txt"));
 
 	# save ROIs
 	# note that a single roi cannot be saved as zip; must be .roi
@@ -347,47 +346,47 @@ def process(srcDir, roiDir, dstDir, currentDir, fileName, keepDirectories, ch1Na
 		IJ.log("No aggregates found in " + baseName)
 
 def run():
-  srcDir = srcFile.getAbsolutePath()
-  dstDir = dstFile.getAbsolutePath()
-  roiDir = roiFile.getAbsolutePath()
-  
-  #Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist = getOptions()
-  ch1Name, Channel_1, ch2Name, Channl_2, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist = getOptions()
-  
-  IJ.log("\\Clear")
-  IJ.log("Processing batch Find_close_peaks")
-  IJ.log("options used:" \
-  		+ "\n" + "channel 1:" + ch1Name + ", " + str(Channel_1) \
-  		+ "\n" + "channel 2:"+ ch2Name+ ", "+ str(Channel_2) \
-  		+ "\n" + "Smaller Sigma in um:"+ str(sigmaSmaller) \
-  		+ "\n" + "Larger Sigma in um:"+str(sigmaLarger) \
-  		+ "\n" + "Min Peak Value for channel 1:"+str(minPeakValueCh1)) \
-  		+ "\n" + "Min Peak Value for channel 2:"+str(minPeakValueCh2) \
-  		+ "\n" + "Min dist between peaks in pixels:"+str(min_dist))
+	srcDir = srcFile.getAbsolutePath()
+	dstDir = dstFile.getAbsolutePath()
+	roiDir = roiFile.getAbsolutePath()
+	
+	#Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist = getOptions()
+	ch1Name, ch2Name, Channel_1, Channel_2, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist = getOptions()
+	
+	IJ.log("\\Clear")
+	IJ.log("Processing batch Find_close_peaks")
+	IJ.log("options used:" \
+	+ "\n" + "channel 1:" + ch1Name + ", " + str(Channel_1) \
+		+ "\n" + "channel 2:"+ ch2Name+ ", "+ str(Channel_2) \
+		+ "\n" + "Smaller Sigma in um:"+ str(sigmaSmaller) \
+		+ "\n" + "Larger Sigma in um:"+str(sigmaLarger) \
+		+ "\n" + "Min Peak Value for channel 1:"+str(minPeakValueCh1) \
+		+ "\n" + "Min Peak Value for channel 2:"+str(minPeakValueCh2) \
+		+ "\n" + "Min dist between peaks in pixels:"+str(min_dist))
 
-  for root, directories, filenames in os.walk(srcDir):
-    filenames.sort();
-    for filename in filenames:
-      # skip dotfiles
-      if filename.startswith("."): 
-      	continue
-      # Check for file extension
-      if not filename.endswith(ext):
-        continue
-      # Check for file name pattern
-      if containString not in filename:
-        continue
-      #process(srcDir, dstDir, root, filename, keepDirectories, Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist)
-      process(srcDir, roiDir, dstDir, root, filename, keepDirectories, ch1Name, ch2Name Channel_1, Channel_2, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist)
-      
-  # clean up
-  rm = RoiManager.getInstance()
-  if not rm:
-	rm = RoiManager()
-  rm.reset()
-  
-  IJ.run("Close All", "")
-  IJ.log("Done!")
+	for root, directories, filenames in os.walk(srcDir):
+		filenames.sort();
+	for filename in filenames:
+		# skip dotfiles
+		if filename.startswith("."): 
+			continue
+		# Check for file extension
+		if not filename.endswith(ext):
+			continue
+		# Check for file name pattern
+		if containString not in filename:
+			continue
+		#process(srcDir, dstDir, root, filename, keepDirectories, Channel_1, Channel_2, radius_background, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist)
+		process(srcDir, roiDir, dstDir, root, filename, keepDirectories, ch1Name, ch2Name, Channel_1, Channel_2, sigmaSmaller, sigmaLarger, minPeakValueCh1, minPeakValueCh2, min_dist)
+		
+	# clean up
+	rm = RoiManager.getInstance()
+	if not rm:
+		rm = RoiManager()
+	rm.reset()
+	
+	IJ.run("Close All", "")
+	IJ.log("Done!")
 
 run()
 
