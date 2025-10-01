@@ -1,4 +1,4 @@
-# combine_agg_files.R
+# combine_close_agg_files.R
 
 # Theresa Swayne, Columbia University, 2025
 # -------- Suggested text for acknowledgement -----------
@@ -16,7 +16,7 @@
 # Output: One CSV file, each row = 1 cell 
 # Output data: original data plus:
 #   area in µm2 (based on pixel size in the pixSize variable)
-#   puncta per unit area
+#   puncta per unit area in each category
 
 # ---- Setup and load data ----
 
@@ -63,7 +63,15 @@ mergedDataFlat <- unnest(mergedDataWithNames, cols = c(file_contents))
 # ---- Calculations ----
 
 areaMicrons <- mergedDataFlat$`Cytoplasm Area` * (pixSize^2)
-punctaPerSqUm <- mergedDataFlat$`Number of FUS Puncta in Cytoplasm`/areaMicrons
+ch1PunctaPerSqUm <- mergedDataFlat$`FUS Puncta in Cytoplasm`/areaMicrons
+ch2PunctaPerSqUm <- mergedDataFlat$`Two Puncta in Cytoplasm`/areaMicrons
+
+# both "close" columns should have identical numbers, or off by one. Pick the max
+closeColumns <- select(mergedDataFlat, contains("within")) %>% 
+  rowwise() %>% # group by rows to get the row-wise maximum
+  mutate(Max = max(c_across(1:2))) # assumes there are only 2 columns
+
+closePunctaPerSqUm <- closeColumns$Max/areaMicrons
 
 # ---- Organize the data ----
   
@@ -75,7 +83,9 @@ punctaPerSqUm <- mergedDataFlat$`Number of FUS Puncta in Cytoplasm`/areaMicrons
 
 outputData <- mergedDataFlat %>% 
   mutate("Cytoplasm Area um2" = areaMicrons, .after = "Cytoplasm Area") %>%
-  mutate("Puncta per um2" = punctaPerSqUm, .after = "Number of FUS Puncta in Cytoplasm")
+  mutate("FUS Puncta per um2" = ch1PunctaPerSqUm) %>%
+  mutate("pFTAA Puncta per um2" = ch2PunctaPerSqUm) %>%
+  mutate("Max Close Puncta per um2" = closePunctaPerSqUm)
 
 # ---- Save results ----
 
