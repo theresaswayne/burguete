@@ -64,7 +64,7 @@ mergedDataFlat <- unnest(mergedDataWithNames, cols = c(file_contents))
 
 areaMicrons <- mergedDataFlat$`Cytoplasm Area` * (pixSize^2)
 ch1PunctaPerSqUm <- mergedDataFlat$`FUS Puncta in Cytoplasm`/areaMicrons
-ch2PunctaPerSqUm <- mergedDataFlat$`Two Puncta in Cytoplasm`/areaMicrons
+ch2PunctaPerSqUm <- mergedDataFlat$`pFTAA Puncta in Cytoplasm`/areaMicrons
 
 # both "close" columns should have identical numbers, or off by one. Pick the max
 closeColumns <- select(mergedDataFlat, contains("within")) %>% 
