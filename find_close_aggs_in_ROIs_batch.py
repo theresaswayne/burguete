@@ -51,16 +51,16 @@ def distance(peak_1, peak_2):
 def getOptions(): # in pixels
 	gd = GenericDialog("Options")
 	gd.addStringField("Name of first channel: ", "FUS");
-	gd.addStringField("Name of second channel: ", "DNAJB6");
+	gd.addStringField("Name of second channel: ", "pFTAA");
 
 	gd.addNumericField("Channel number for first channel", 3, 0)
 	gd.addNumericField("Channel number for second channel", 2, 0)
 
 	#gd.addNumericField("radius_background", 100, 0)
- 	gd.addNumericField("Min peak width (sigma) in calibrated units", 1, 2)
- 	gd.addNumericField("Max peak width (sigma) in calibrated units", 5, 2)
+ 	gd.addNumericField("Min peak width (sigma) in calibrated units", 2, 2)
+ 	gd.addNumericField("Max peak width (sigma) in calibrated units", 7, 2)
   	gd.addNumericField("minPeakValue aggregate channel", 600, 0)
-  	gd.addNumericField("minPeakValue second channel", 20, 0)
+  	gd.addNumericField("minPeakValue second channel", 600, 0)
   	gd.addNumericField("Minimum distance in pixels", 2, 0) # TODO: Clarify pixel vs micron
 
   	gd.showDialog()
