@@ -57,8 +57,8 @@ def getOptions(): # in pixels
 	gd.addNumericField("Channel number for second channel", 2, 0)
 
 	#gd.addNumericField("radius_background", 100, 0)
- 	gd.addNumericField("Min peak width (sigma) in calibrated units", 2, 2)
- 	gd.addNumericField("Max peak width (sigma) in calibrated units", 7, 2)
+ 	gd.addNumericField("Min peak width (sigma)", 2, 2)
+ 	gd.addNumericField("Max peak width (sigma)", 7, 2)
   	gd.addNumericField("minPeakValue aggregate channel", 600, 0)
   	gd.addNumericField("minPeakValue second channel", 600, 0)
   	gd.addNumericField("Minimum distance in pixels", 2, 0) # TODO: Clarify pixel vs micron
@@ -313,8 +313,8 @@ def process(srcDir, roiDir, dstDir, currentDir, fileName, keepDirectories, ch1Na
 		table.addValue("Cytoplasm Area", cytoArea)
 		table.addValue("%s Puncta in Cytoplasm" %(ch1Name), ch1Count)
 		table.addValue("%s Puncta in Cytoplasm" %(ch2Name), ch2Count)
-		table.addValue("%s within %s um of %s" %(ch2Name, min_dist, ch1Name), ch2CloseToCh1Count)
-		table.addValue("%s within %s um of %s" %(ch1Name, min_dist, ch2Name), ch1CloseToCh2Count)
+		table.addValue("%s within %s pixels of %s" %(ch2Name, min_dist, ch1Name), ch2CloseToCh1Count)
+		table.addValue("%s within %s pixels of %s" %(ch1Name, min_dist, ch2Name), ch1CloseToCh2Count)
 
 	rm.runCommand(imp1, "Show All")
 	# Also show the image with the PointRoi on it:  
@@ -358,8 +358,8 @@ def run():
 	IJ.log("options used:" \
 	+ "\n" + "channel 1:" + ch1Name + ", " + str(Channel_1) \
 		+ "\n" + "channel 2:"+ ch2Name+ ", "+ str(Channel_2) \
-		+ "\n" + "Smaller Sigma in um:"+ str(sigmaSmaller) \
-		+ "\n" + "Larger Sigma in um:"+str(sigmaLarger) \
+		+ "\n" + "Smaller Sigma:"+ str(sigmaSmaller) \
+		+ "\n" + "Larger Sigma:"+str(sigmaLarger) \
 		+ "\n" + "Min Peak Value for channel 1:"+str(minPeakValueCh1) \
 		+ "\n" + "Min Peak Value for channel 2:"+str(minPeakValueCh2) \
 		+ "\n" + "Min dist between peaks in pixels:"+str(min_dist))
