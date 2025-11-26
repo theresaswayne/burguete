@@ -2,14 +2,16 @@
 //@File(label = "Input ROIset directory", style = "directory") roiDir
 //@File(label = "Output directory", style = "directory") outputDir
 //@String (label = "File suffix", value = ".nd2") fileSuffix
+//@Integer(label = "Channel to measure",value = 3) chan
 
+// ------- IN PROGRESS ---------
 
 // measure_rois_batch.ijm
 // ImageJ/Fiji script to process a batch of images and corresponding ROIsets to generate intensity measurements
 // Optional special features: Selection of ROIs by name pattern
 
 // Required input: ROIset must be a Zip file with the same base name. Image is expected to end with -MaxIP 
-//    (last several characters are disregarded when finding basename)
+//    (characters after hyphen are disregarded when finding the basename)
 // Image: No1_001-MaxIP
 // Roiset: no1_001_RoiSet_Cyto_Rois.zip
 
@@ -40,7 +42,7 @@ print("\\Clear"); // clear Log window
 
 roiManager("reset");
 
-// setBatchMode(true); // faster performance but doesn't work for all functions
+setBatchMode(true); // faster performance but doesn't work for all functions
 run("Bio-Formats Macro Extensions"); // supports native microscope files
 
 run("Set Measurements...", "area mean centroid integrated stack display redirect=None decimal=3");
@@ -49,7 +51,7 @@ run("Set Measurements...", "area mean centroid integrated stack display redirect
 
 print("Starting");
 
-processFolder(inputDir, roiDir, outputDir, fileSuffix);
+processFolder(inputDir, roiDir, outputDir, fileSuffix, chan);
 
 // Clean up images and get out of batch mode
 
@@ -63,7 +65,7 @@ print("Finished");
 
 // ---- Functions ----
 
-function processFolder(input, roiInput, output, suffix) {
+function processFolder(input, roiInput, output, suffix, channel) {
 
 	// this function searches for files matching the criteria and sends them to the processFile function
 	filenum = -1;
@@ -73,17 +75,17 @@ function processFolder(input, roiInput, output, suffix) {
 	list = Array.sort(list);
 	for (i = 0; i < list.length; i++) {
 		if(File.isDirectory(input + File.separator + list[i])) {
-			processFolder(input + File.separator + list[i], output, suffix); // handles nested folders
+			processFolder(input + File.separator + list[i], output, suffix); // handle nested folders
 		}
-		if startsWith(list[i], ".") { // dotfiles found on some mac disks
+		if(startsWith(list[i], ".")) { // avoid dotfiles found on some mac disks
 			continue;
 		}
 		if(endsWith(list[i], suffix)) {
-		}
+		
 			filenum = filenum + 1;
-			processFile(input, roiInput, output, list[i], filenum); // passes the filename and parameters to the processFile function
+			processFile(input, roiInput, output, list[i], filenum); // pass the filename and parameters to the processFile function
 		}
-	}
+	} // end of file list loop
 } // end of processFolder function
 
 
@@ -98,17 +100,18 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	// open the image file
 	run("Bio-Formats", "open=&imagePath");
 	
+	//open(imagePath);
 	// determine the name of the file without extension
 	id = getImageID();
 	dotIndex = lastIndexOf(fileName, ".");
-	basename = substring(fileName, 0, dotIndex); 
+	basename = substring(fileName, 0, dotIndex);
 	extension = substring(fileName, dotIndex);
 
 	print("Processing image",fileNumber," at path" ,imagePath, "with basename",basename);	
 	
 	// open the corresponding ROIset
 	filenameParsed = split(basename, "-");
-	roiFile = filenameParsed[0] + "_RoiSet_Cyto_Rois.zip"; // omit the MaxIP and insert the ROI filename pattern
+	roiFile = filenameParsed[0] + "_RoiSet_Cyto_Rois.zip"; // omit the -MaxIP and insert the ROI filename pattern
 	roiPath = roiFolder + File.separator +roiFile;
 	
 	// open ROI
@@ -118,40 +121,7 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	
 	numROIs = roiManager("count");	
 	
-	// ---------- DOCUMENT ROI LOCATIONS
 	
-	// save a snapshot
-	Stack.getPosition(channel, slice, frame); // how does the user currently have the stack set up
-	if (is("composite")) {
-		Stack.setDisplayMode("composite"); // this command raises error if image is not composite
-		run("Stack to RGB", "keep");
-	}
-	else {
-		run("Select None");
-	//	run("Duplicate...", "title=copy duplicate"); // for single-channel non-RGB images; Flatten doesn't create new window
-		run("Duplicate...", "title=copy"); // for single-channel non-RGB images; Flatten doesn't create new window
-	}
-	rgbID = getImageID();
-	selectImage(rgbID);
-	
-	roiManager("Show All with labels");
-	Stack.setPosition(channel, slice, frame); // restore the previous setup
-	run("Flatten");
-	flatID = getImageID();
-	selectImage(flatID);
-	saveAs("tiff", outputFolder+File.separator+basename+"_ROIlocs.tif");
-	
-	print("Saved snapshot.");
-	
-	// close images
-	if (isOpen(flatID)) {
-		selectImage(flatID);
-		close();
-	}
-	if (isOpen(rgbID)) {
-		selectImage(rgbID);
-		close();
-	}
 	
 	// ---------- Measure and save
 	
@@ -164,16 +134,8 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	roiManager("Remove Slice Info");
 	run("Select None");
 	
-	// TODO: Select slice for measurement (or measure all slices)
-	
-	
-	// do the measurement of all rois
-	roiManager("Measure");
-	
-	// TODO: Save the table of measurements
-	
-	for(roiIndex=0; roiIndex < numROIs; roiIndex++) // loop through ROIs
-		{ 
+	for(roiIndex=0; roiIndex < numROIs; roiIndex++) { // loop through ROIs
+
 		selectImage(id);
 		roiNum = roiIndex + 1; // so that image names start with 1 like the ROI labels
 		roiManager("Select", roiIndex);  // ROI indices start with 0
@@ -181,29 +143,43 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 		print("The name of ROI number",roiNum, "is",roiName);
 		//desiredName = "Cyto_"+roiNum;
 		if (matches(roiName, "Cyto_[0-9]")) {
-			
-			cropName = basename+"_crop_"+roiName+".tif";
-			run("Duplicate...", "title=&cropName duplicate"); // creates the cropped stack
-			selectWindow(cropName);
-		
-			if ((selectionType() != 0) && (selectionType() != -1)) {
-				run("Clear Outside","stack"); // this works because non-rectangular rois are still active on the cropped image
-				run("Select None");// clears the selection that is otherwise saved with the image (although it can be recovered with "restore selection")
-				}
-			
-			saveAs("tiff", outputFolder+File.separator+cropName);
-			close();
-			}
-
+			// later: add circle generation
 		}
+	} // end of ROI loop
+
+	// make sure nothing is selected to begin with
+	selectImage(id);
+	roiManager("Deselect");
+	run("Select None");
+	
+	// do the measurement of all rois
+	
+	// option 1
+	Stack.setChannel(channel);
+	roiManager("measure"); // this gives you all rois, just one channel
+	
+	// option 2
+	// roiManager("multi-measure measure_all"); // measures all channels -- first all rois on c1, then on c2, etc
+
+	// option 3 -- must cycle through ROIs to make this work. Will be c1, c2, c3... for ROI1, etc.
+	// run("Measure Stack...");
+	
+	// Save the table of measurements
+	resultsName = basename + "_results.csv";
+	selectWindow("Results");
+	saveAs("Results", outputFolder+File.separator+resultsName);
+	
+	
 	// ---------- CLEANUP
 	
 	run("Select None");
-	print("Saved",numROIs,"cropped ROIs.");
+	//print("Saved",numROIs,"cropped ROIs.");
 	selectImage(id);
 	close();
 	roiManager("Reset");
-
+	run("Clear Results");
+	run("Collect Garbage");
+	setBatchMode("exit and display");
 
 } // end of processFile function
 
