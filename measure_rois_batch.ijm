@@ -4,16 +4,15 @@
 //@String (label = "File suffix", value = ".nd2") fileSuffix
 //@Integer(label = "Channel to measure",value = 3) chan
 
-// ------- IN PROGRESS ---------
-
 // measure_rois_batch.ijm
-// ImageJ/Fiji script to process a batch of images and corresponding ROIsets to generate intensity measurements
-// Optional special features: Selection of ROIs by name pattern
+// ImageJ/Fiji script to measure a batch of images with corresponding ROIsets
+// One channel is measured (selected by user at runtime)
 
-// Required input: ROIset must be a Zip file with the same base name. Image is expected to end with -MaxIP 
+// *** Required inputs *** 
+//  ROIset must be a Zip file with the same base name. Image is expected to end with -MaxIP 
 //    (characters after hyphen are disregarded when finding the basename)
-// Image: No1_001-MaxIP
-// Roiset: no1_001_RoiSet_Cyto_Rois.zip
+//  Image: No1_001-MaxIP
+//  Roiset: no1_001_RoiSet_Cyto_Rois.zip
 
 // Theresa Swayne, 2025
 //  -------- Suggested text for acknowledgement -----------
@@ -59,7 +58,8 @@ while (nImages > 0) { // clean up open images
 	selectImage(nImages);
 	close(); 
 }
-setBatchMode(false);
+//setBatchMode(false);
+setBatchMode("exit and display");
 print("Finished");
 
 
@@ -100,7 +100,6 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	// open the image file
 	run("Bio-Formats", "open=&imagePath");
 	
-	//open(imagePath);
 	// determine the name of the file without extension
 	id = getImageID();
 	dotIndex = lastIndexOf(fileName, ".");
@@ -119,9 +118,7 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	print("Opening ROI", roiPath);
 	roiManager("Open", roiPath);
 	
-	numROIs = roiManager("count");	
-	
-	
+	//numROIs = roiManager("count");	
 	
 	// ---------- Measure and save
 	
@@ -134,18 +131,18 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	roiManager("Remove Slice Info");
 	run("Select None");
 	
-	for(roiIndex=0; roiIndex < numROIs; roiIndex++) { // loop through ROIs
-
-		selectImage(id);
-		roiNum = roiIndex + 1; // so that image names start with 1 like the ROI labels
-		roiManager("Select", roiIndex);  // ROI indices start with 0
-		roiName = Roi.getName();
-		print("The name of ROI number",roiNum, "is",roiName);
-		//desiredName = "Cyto_"+roiNum;
-		if (matches(roiName, "Cyto_[0-9]")) {
-			// later: add circle generation
-		}
-	} // end of ROI loop
+//	for(roiIndex=0; roiIndex < numROIs; roiIndex++) { // loop through ROIs
+//
+//		selectImage(id);
+//		roiNum = roiIndex + 1; // so that image names start with 1 like the ROI labels
+//		roiManager("Select", roiIndex);  // ROI indices start with 0
+//		roiName = Roi.getName();
+//		//print("The name of ROI number",roiNum, "is",roiName);
+//		//desiredName = "Cyto_"+roiNum;
+//		if (matches(roiName, "Cyto_[0-9]")) {
+//			// later: add circle generation
+//		}
+//	} // end of ROI loop
 
 	// make sure nothing is selected to begin with
 	selectImage(id);
@@ -155,8 +152,14 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	// do the measurement of all rois
 	
 	// option 1
+	getDimensions(width, height, channels, slices, frames);
+	if (channel > channels) {
+		print("Channel selection is invalid for image",basename);
+		return; // exit process file loop
+	}
 	Stack.setChannel(channel);
-	roiManager("measure"); // this gives you all rois, just one channel
+	print("Measuring channel",channel);
+	roiManager("measure"); // measures all rois, one line per measurement, selected channel
 	
 	// option 2
 	// roiManager("multi-measure measure_all"); // measures all channels -- first all rois on c1, then on c2, etc
@@ -167,6 +170,7 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	// Save the table of measurements
 	resultsName = basename + "_results.csv";
 	selectWindow("Results");
+	print("Saving results to",outputFolder+File.separator+resultsName);
 	saveAs("Results", outputFolder+File.separator+resultsName);
 	
 	
@@ -179,7 +183,7 @@ function processFile(inputFolder, roiFolder, outputFolder, fileName, fileNumber)
 	roiManager("Reset");
 	run("Clear Results");
 	run("Collect Garbage");
-	setBatchMode("exit and display");
+
 
 } // end of processFile function
 
