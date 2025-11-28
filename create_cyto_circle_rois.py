@@ -9,8 +9,9 @@
 #@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
 
 # create_cyto_circle_rois.py
-# Given an ROIset of a prescribed format, containing nucleus and whole cell, 
+# Given an ROIset of a prescribed format, containing (optional: background) nucleus and whole cell, 
 # adds new ROIs for cytoplasm only and for a cytoplasm limited by a desired radius
+# and renames ROIs by compartment in cell number 
 
 # ------- EXPECTED ROISet FORMAT ----------
 # optional: 1st ROI = background measurement
@@ -32,9 +33,11 @@ from net.imglib2.view import Views
 from net.imglib2.img.display.imagej import ImageJFunctions as IL
 from ij.process import ImageStatistics as IS
 from net.imglib2.algorithm.dog import DogDetection
-from ij.gui import PointRoi
+from ij.gui import Roi, PointRoi, OvalRoi
 from jarray import zeros
 from ij.measure import ResultsTable
+from ij.measure import Measurements
+from ij.plugin.filter import Analyzer
 from math import sqrt
 from java.awt import Color
 from ij.plugin.frame import RoiManager
@@ -46,59 +49,103 @@ from ij.measure import ResultsTable
 
 def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, dilate, pixSize, radius):
 	
- 	#IJ.run("Close All", "")
+	#IJ.run("Close All", "")
 	
-	imp = IJ.getImage() # necessary to avoid RoiMgr errors
+	# Reference the current (dummy) image -- necessary to avoid RoiMgr errors
+	imp = IJ.getImage() 
 
+	# Create an ROI manager insance
 	rm = RoiManager.getInstance()
 	if not rm:
 	  rm = RoiManager()
 	rm.reset()
 	
- 	IJ.log("Processing ROI set:" + fileName)
- 	
- 	rm.runCommand("Open", os.path.join(currentDir, fileName))
- 	
- 	# loop through ROIs, skipping as needed
- 	
- 	numRois = rm.getCount()
- 	IJ.log("This set has " + str(numRois) + " ROIs")
- 	
- 	# check for a valid number of ROIs
- 	if (numRois - skipRois) % 2 != 0:
- 		IJ.log("Skipped ROI set " + fileName + " because it has an invalid number of ROIs.")
- 		return
+	IJ.log("Processing ROI set:" + fileName)
+	
+	# Open the ROI set
+	rm.runCommand("Open", os.path.join(currentDir, fileName))
+	
+	# Check for a valid number of ROIs
+	numRois = rm.getCount()
+	IJ.log("This set has " + str(numRois) + " ROIs")
+	# --- we expect 2 ROIs per cell, plus optional skipped ROIs. Skip the set if the count is wrong
+	if (numRois - skipRois) % 2 != 0:
+		IJ.log("Skipped ROI set " + fileName + " because it has an invalid number of ROIs.")
+		return # exit the process file function
 
+	# Create a cytoplasm ROI for each cell -- Loop through the cells via the ROI indices of the nuclear ROI
+	
 	startIndex = skipRois # indices start at 0, so if we skip one, we start at 1
- 	endIndex = numRois - startIndex # end is not included in range 
- 	cellCount = 1
- 	# loop through cells by their nuclear ROIs
- 	for RoiIndex in range(startIndex, endIndex, 2): # if we skip the first ROI, indices will be 1, 3, etc
+	endIndex = numRois - startIndex # end is not included in range 
+	cellIndex = 1 # this is the cell number we're working on
+	for RoiIndex in range(startIndex, endIndex, 2): # if we skip the first ROI, indices will be 1, 3, etc
 		IJ.log("Processing ROI index " + str(RoiIndex))
-		rm.select(RoiIndex)
 		
+		# determine the center of the nucleus (before dilating)
+		rm.select(RoiIndex)
+		stats = imp.getAllStatistics()
+		nucX = stats.xCentroid
+		nucY = stats.yCentroid
+		IJ.log("The centroid of ROI " + str(RoiIndex) + " is " + str(nucX) + "," + str(nucY))
+		
+		# dilate the nucleus ROI before defining cytoplasm, to avoid including bright nuclear fluorescence
 		IJ.run("Enlarge...", "enlarge="+str(dilate))
-		#RoiEnlarger.enlarge(imp, 20)
-		rm.runCommand(imp,"Update")
- 		rm.rename(RoiIndex, "Nucl_" + str(cellCount))
-		rm.rename(RoiIndex+1, "Cell_" + str(cellCount))
+		rm.runCommand(imp,"Update") 
+		
+		# rename the nucleus and cell ROIs with cellIndex
+		rm.rename(RoiIndex, "Nucl_" + str(cellIndex)) #
+		rm.rename(RoiIndex+1, "Cell_" + str(cellIndex))
+		
+		# define the cytoplasm as the cell exclusive of the nucleus 
 		cellRois = array([RoiIndex, RoiIndex+1], 'i')
- 		rm.setSelectedIndexes(cellRois)
- 		IJ.log("Selected ROIs " + str(cellRois[0]) + "," + str(cellRois[1]))
- 		rm.runCommand("XOR") # requires an image to be open
- 		rm.runCommand("Add") # should be added at the end of the list
- 		rm.deselect() # make sure nothing else selected
- 		newTotal = rm.getCount()
- 		IJ.log("There are now " + str(newTotal) + " ROIs")
- 		rm.rename(newTotal-1, "Cyto_" + str(cellCount))
- 		cellCount = cellCount + 1
- 	
- 	# measure area
- 	numRois = rm.getCount()
- 	
- 	for RoiIndex in range(0, numRois):
-	 		
-	 	# add a line to the results table
+		rm.setSelectedIndexes(cellRois)
+		IJ.log("Selected ROIs " + str(cellRois[0]) + "," + str(cellRois[1]))
+		rm.runCommand("XOR") # requires an image to be open
+		rm.runCommand("Add") # the new ROI should be added at the end of the list
+		newTotal = rm.getCount()
+		rm.deselect()
+		rm.rename(newTotal-1, "Cyto_" + str(cellIndex))
+		
+		# define a cytoplasmic area constrained by a circle
+		rm.deselect()
+		# create a circle defined by the upper left corner, width, and height
+		circleX = nucX-radius
+		circleY = nucY-radius
+		circle = OvalRoi(circleX, circleY, radius*2, radius*2)
+		imp.setRoi(circle)
+		rm.runCommand("Add") # circle is added at the end of the list
+		newTotal = rm.getCount()
+		rm.deselect()
+		CytoCircleRois = array([newTotal-2, newTotal-1], "i") # select cyto and circle
+		rm.setSelectedIndexes(CytoCircleRois)
+		rm.runCommand("AND") # Create the intersection of the circle with the cytoplasm
+		# Check to ensure that the intersection exists
+		if imp.getRoi() == None:
+			IJ.log("The circle and the cytoplasm do not intersect!")
+		else:
+			intStats = imp.getStatistics()
+			IJ.log("The area of the intersection is " + str(intStats.area))
+			rm.runCommand("Add") # the new ROI should be added at the end of the list
+			rm.deselect()
+			rm.rename(newTotal, "CytoConstrained_" + str(cellIndex)) # rename 
+			# delete the circle
+			rm.deselect()
+			rm.select(newTotal-1) # select the circle
+			rm.runCommand("Delete")
+		
+		# restore the original nucleus size
+		rm.select(RoiIndex)
+		IJ.run("Enlarge...", "enlarge="+str(-dilate))
+		rm.runCommand(imp,"Update") 
+		rm.deselect()
+		
+		cellIndex = cellIndex + 1
+	
+	numRois = rm.getCount()
+	
+	for RoiIndex in range(0, numRois):
+			
+		# add a line to the results table
 		#table.incrementCounter()
 		#table.addValue("Filename", fileName)
 		
@@ -127,7 +174,6 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 	rm.save(os.path.join(saveDir, baseName + "_Cyto_Rois.zip"))
 	# table.save(os.path.join(saveDir, baseName + "_RoiAreas.csv"))
 
-
 def run():
 	srcDir = srcFile.getAbsolutePath()
 	dstDir = dstFile.getAbsolutePath()
@@ -139,20 +185,29 @@ def run():
 	
 	imp = IJ.createImage("Dummy", "8-bit black", 2048, 2048, 1) # necessary to avoid RoiMgr errors
 	imp.show()
-	# Set the scale for this image to match the scale
+	
+	# Set the scale for the dummy image to match the scale entered by the user
+	
 	origcal = imp.getCalibration()
 	origPixSize = origcal.pixelWidth
-	IJ.log("The original pixel size is " + str(origPixSize))
+	origUnit = origcal.getUnit()
+	IJ.log("The original pixel size is " + str(origPixSize) + " " + origUnit)
+	
 	newcal = origcal # duplicate the existing calibration
 	newcal.pixelWidth = pixSize # update the pixel size
 	newcal.pixelHeight = pixSize
+	newcal.setUnit("um")
 	imp.setCalibration(newcal)
+	
+	# verify scale has been changed
 	checkcal = imp.getCalibration()
 	checkPixSize = checkcal.pixelWidth
-	IJ.log("The new pixel size is " + str(checkPixSize))
+	checkUnit = checkcal.getUnit()
+	IJ.log("The new pixel size is " + str(checkPixSize) + " " + checkUnit)
 	
 	#table = ResultsTable()
 	
+	# Find files to process
 	for root, directories, filenames in os.walk(srcDir):
 		filenames.sort();
 	for filename in filenames:
@@ -165,6 +220,7 @@ def run():
 		# Check for file name pattern
 		if containString not in filename:
 			continue
+		# Actually process the files
 		process(imp, srcDir, dstDir, root, filename, keepDirectories, skipRois, dilate, pixSize, radius)
 
 	rm = RoiManager.getInstance()
@@ -179,5 +235,3 @@ def run():
 	IJ.log("Done!")
 
 run()
-
-#RoiManager.getName(index)
