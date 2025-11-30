@@ -65,11 +65,6 @@ process_file_func <- function(input, f, out) {
   
   # ---- Collect image info ----
   
-  # get image name from first row in Label column, 
-  #   from beginning to the first colon after a dot and 3 characters (file extension)
-  #measName <- data$Label[1]
-  #imageName <- str_match(measName, "^(.*)\\..{3}:")[2] # the second match is the one we want
-  
   # get area per pixel, 
   #   by dividing the average IntDen by the average RawIntDen
   areaPerPixel <- mean(data$IntDen)/mean(data$RawIntDen)
@@ -195,7 +190,7 @@ process_file_func <- function(input, f, out) {
   # Corr_Cyto/Nuc_Mean,etc
   # Corr_Cyto/Cell_Mean, etc
   
-  data_ratios <- data_calculated %>% 
+  data_ratios <- data_corrected %>% 
     mutate(Ratio_CytoToNuc_Corr_Mean = Cyto_Corr_Mean/Nuc_Corr_Mean) %>%
     mutate(Ratio_CytoToNuc_Corr_IntDen = Cyto_Corr_IntDen/Nuc_Corr_IntDen) %>%
     mutate(Ratio_CytoToCell_Corr_Mean = Cyto_Corr_Mean/Cell_Corr_Mean) %>%
@@ -208,7 +203,9 @@ process_file_func <- function(input, f, out) {
   # ---- Save results ----
   
   #outputFolder <- dirname(f) # parent of the input folder
-  # generate filename from image name
+  # generate filename from image base name
+  imageNameSplit <- unlist(strsplit(data_ratios$Image[1], "[.]"))
+  imageName <- imageNameSplit[1]
   outputName = paste(imageName,"_calculations.csv", sep = "")
   # write CSV file
   write_csv(data_ratios,file.path(out, outputName))
