@@ -1,4 +1,4 @@
-# combine_csv_files.R
+# combine_csv_files_with_num.R
 # merges a batch of csv files, putting the filename in a new column
 # Requirement: All files must be within a single folder and the names of files to be processed must contain the pattern in the finalText variable
 # adapted from http://serialmentor.com/blog/2016/6/13/reading-and-combining-many-tidy-data-files-in-R
