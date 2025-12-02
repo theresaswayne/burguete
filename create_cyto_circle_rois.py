@@ -2,9 +2,9 @@
 #@ File	(label = "Output directory", style = "directory") dstFile
 #@ String  (label = "File extension", value=".zip") ext
 #@ String  (label = "File name contains", value = "RoiSet") containString
-#@ Integer  (label = "ROIs to skip at beginning", value = "1") skipRois
+#@ boolean  (label = "Is there a background ROI at the beginning?", value = "true") BackgroundRoi
 #@ Integer (label = "# Pixels to dilate nucleus before creating cytoplasm", value = "3") dilate
-#@ Double (label = "Pixel size in microns", value = 0.5) pixSize
+#@ Double (label = "Pixel size in microns", value = 0.1035718) pixSize
 #@ Double (label = "Radius (um) for cytoplasmic circle", value = 13) radius
 #@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
 
@@ -67,15 +67,16 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 	
 	# Check for a valid number of ROIs
 	numRois = rm.getCount()
+
 	IJ.log("This set has " + str(numRois) + " ROIs")
 	# --- we expect 2 ROIs per cell, plus optional skipped ROIs. Skip the set if the count is wrong
-	if (numRois - skipRois) % 2 != 0:
+	if (numRois - skip) % 2 != 0:
 		IJ.log("Skipped ROI set " + fileName + " because it has an invalid number of ROIs.")
 		return # exit the process file function
 
 	# Create a cytoplasm ROI for each cell -- Loop through the cells via the ROI indices of the nuclear ROI
 	
-	startIndex = skipRois # indices start at 0, so if we skip one, we start at 1
+	startIndex = skip # indices start at 0, so if we skip one, we start at 1
 	endIndex = numRois - startIndex # end is not included in range 
 	cellIndex = 1 # this is the cell number we're working on
 	for RoiIndex in range(startIndex, endIndex, 2): # if we skip the first ROI, indices will be 1, 3, etc
@@ -133,7 +134,7 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 			rm.select(newTotal-1) # select the circle
 			rm.runCommand("Delete")
 		
-		# restore the original nucleus size
+		# restore the original nucleus size to for future measurement
 		rm.select(RoiIndex)
 		IJ.run("Enlarge...", "enlarge="+str(-dilate))
 		rm.runCommand(imp,"Update") 
@@ -144,7 +145,7 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 	numRois = rm.getCount()
 	
 	for RoiIndex in range(0, numRois):
-			
+		
 		# add a line to the results table
 		#table.incrementCounter()
 		#table.addValue("Filename", fileName)
@@ -159,11 +160,17 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 		#rm.runCommand(imp,"Measure");
 		stats = imp.getStatistics(IS.AREA)
 		#IJ.log("area: %s" %(stats.area))
-	
+		
 		# Add to results table
 		#table.addValue("ROI area",stats.area)
 		rm.deselect() # make sure nothing else selected
-
+		
+	# rename the background ROI if present
+	if skip == 1:
+		rm.deselect()
+		rm.rename(0, "Background")
+		rm.deselect()
+	
 	# save the updated ROIs and area table
 	saveDir = currentDir.replace(srcDir, dstDir) if keepDirectories else dstDir
 	if not os.path.exists(saveDir):
@@ -186,6 +193,12 @@ def run():
 	imp = IJ.createImage("Dummy", "8-bit black", 2048, 2048, 1) # necessary to avoid RoiMgr errors
 	imp.show()
 	
+	# define what to do if there is a background ROI
+	if BackgroundRoi:
+		skipRois = 1
+	else:
+		skipRois = 0
+		
 	# Set the scale for the dummy image to match the scale entered by the user
 	
 	origcal = imp.getCalibration()
@@ -211,6 +224,7 @@ def run():
 	for root, directories, filenames in os.walk(srcDir):
 		filenames.sort();
 	for filename in filenames:
+		IJ.log("Checking file " + filename)
 		# Check for dotfile
 		if filename.startswith("."):
 			continue
