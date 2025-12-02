@@ -2,11 +2,11 @@
 #@ File	(label = "Output directory", style = "directory") dstFile
 #@ String  (label = "File extension", value=".zip") ext
 #@ String  (label = "File name contains", value = "RoiSet") containString
-#@ boolean  (label = "Is there a background ROI at the beginning?", value = "true") BackgroundRoi
+#@ Boolean  (label = "Is there a background ROI at the beginning?", value = "True") BackgroundRoi
 #@ Integer (label = "# Pixels to dilate nucleus before creating cytoplasm", value = "3") dilate
 #@ Double (label = "Pixel size in microns", value = 0.1035718) pixSize
 #@ Double (label = "Radius (um) for cytoplasmic circle", value = 13) radius
-#@ boolean (label = "Keep directory structure when saving", value = true) keepDirectories
+#@ Boolean (label = "Keep directory structure when saving", value = true) keepDirectories
 
 # create_cyto_circle_rois.py
 # Given an ROIset of a prescribed format, containing (optional: background) nucleus and whole cell, 
@@ -82,15 +82,21 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 	for RoiIndex in range(startIndex, endIndex, 2): # if we skip the first ROI, indices will be 1, 3, etc
 		IJ.log("Processing ROI index " + str(RoiIndex))
 		
-		# determine the center of the nucleus (before dilating)
+		# determine the center of the nucleus (before dilating) -- note these values are in scaled units
 		rm.select(RoiIndex)
 		stats = imp.getAllStatistics()
 		nucX = stats.xCentroid
 		nucY = stats.yCentroid
-		IJ.log("The centroid of ROI " + str(RoiIndex) + " is " + str(nucX) + "," + str(nucY))
+		IJ.log("The centroid of ROI " + str(RoiIndex) + " is " + str(nucX) + "," + str(nucY) + " um")
+		# convert to pixels for circle construction
+		cal = imp.getCalibration()
+		pixelSize = cal.pixelWidth
+		nucXpix = nucX/pixelSize
+		nucYpix = nucY/pixelSize
+		IJ.log("The centroid of ROI " + str(RoiIndex) + " is " + str(nucXpix) + "," + str(nucYpix) + " pixels")
 		
-		# dilate the nucleus ROI before defining cytoplasm, to avoid including bright nuclear fluorescence
-		IJ.run("Enlarge...", "enlarge="+str(dilate))
+		# dilate the nucleus ROI before defining cytoplasm, to avoid including bright nuclear fluorescence -- note that we use pixel units
+		IJ.run("Enlarge...", "enlarge="+str(dilate) + " pixel")
 		rm.runCommand(imp,"Update") 
 		
 		# rename the nucleus and cell ROIs with cellIndex
@@ -110,9 +116,10 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 		# define a cytoplasmic area constrained by a circle
 		rm.deselect()
 		# create a circle defined by the upper left corner, width, and height
-		circleX = nucX-radius
-		circleY = nucY-radius
-		circle = OvalRoi(circleX, circleY, radius*2, radius*2)
+		radiusPix = radius/pixelSize
+		circleX = nucXpix-radiusPix
+		circleY = nucYpix-radiusPix
+		circle = OvalRoi(circleX, circleY, radiusPix*2, radiusPix*2)
 		imp.setRoi(circle)
 		rm.runCommand("Add") # circle is added at the end of the list
 		newTotal = rm.getCount()
@@ -134,9 +141,9 @@ def process(imp, srcDir, dstDir, currentDir, fileName, keepDirectories, skip, di
 			rm.select(newTotal-1) # select the circle
 			rm.runCommand("Delete")
 		
-		# restore the original nucleus size to for future measurement
+		# restore the original nucleus size for future measurement -- note that we use pixel units here
 		rm.select(RoiIndex)
-		IJ.run("Enlarge...", "enlarge="+str(-dilate))
+		IJ.run("Enlarge...", "enlarge="+str(-dilate)+" pixel")
 		rm.runCommand(imp,"Update") 
 		rm.deselect()
 		
