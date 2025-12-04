@@ -19,13 +19,18 @@ df <- read_csv(selectedFile, show_col_types = FALSE)
 
 # ---- Get an overview of the data ----
 skim(df) # notes missing data
-summary(df) # mean, median, min, max, quartiles
+summary(No6_1118$Ratio_CytoNuc_Corr_Mean) # mean, median, min, max, quartiles
 summary(df$Ratio_CytoConstrToCell_Corr_Mean) # for a specific column
 
 # ---- Plot important variables ----
-hist(df$Ratio_CytoConstrToNuc_Corr_Mean, xlim = c(0,1), labels = FALSE)
-hist(df$Ratio_CytoToNuc_Corr_Mean, xlim = c(0,1))
-#hist(data$Ratio_CytoNuc_Corr_Mean, xlim = c(0,1))
+
+# for new data
+hist(No36_1202$Ratio_CytoConstrToNuc_Corr_Mean, xlim = c(0,1), labels = FALSE)
+hist(No36_1202$Ratio_CytoToNuc_Corr_Mean, xlim = c(0,1))
+
+# for old data
+hist(No36_1118$Ratio_CytoNuc_Corr_Mean, xlim = c(0,1))
+
 p <- ggplot(data = df, aes(x = Ratio_CytoConstrToNuc_Corr_Mean)) +
   geom_histogram() +
   xlim = c(0,1)
