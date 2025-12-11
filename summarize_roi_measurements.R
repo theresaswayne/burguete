@@ -42,7 +42,7 @@ plt <- ggplot(data = diamonds) +
 
 plt <- ggplot(data = No6) +
   geom_bar(mapping = aes(x = Ratio_CytoConstrToNuc_Corr_Mean, 
-                         y = after_stat(prop))) +
+                         y = after_stat(prop)))
 
 #ggsave("foo.png")
 p
