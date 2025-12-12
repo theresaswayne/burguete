@@ -4,7 +4,7 @@
 #@ String  (label = "File name contains", value = "RoiSet") containString
 #@ Boolean  (label = "Is there a background ROI at the beginning?", value = "True") BackgroundRoi
 #@ Integer (label = "# Pixels to dilate nucleus before creating cytoplasm", value = "3") dilate
-#@ Double (label = "Pixel size in microns", value = 0.1035718) pixSize
+#@ Double (label = "Pixel size in microns", value = 0.1035718, style="format:#.#######") pixSize
 #@ Double (label = "Radius (um) for cytoplasmic circle", value = 13) radius
 #@ Boolean (label = "Keep directory structure when saving", value = true) keepDirectories
 

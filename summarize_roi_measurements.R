@@ -18,17 +18,19 @@ selectedFile <- file.choose()
 df <- read_csv(selectedFile, show_col_types = FALSE)
 
 # ---- Get an overview of the data ----
-skim(df) # notes missing data
-summary(No6_1118$Ratio_CytoNuc_Corr_Mean) # mean, median, min, max, quartiles
-summary(df$Ratio_CytoConstrToCell_Corr_Mean) # for a specific column
+skim(df$Ratio_CytoToNuc_Corr_Mean)
+skim(df$Ratio_CytoConstrToNuc_Corr_Mean) # notes missing data
+
+summary(df$Ratio_CytoToNuc_Corr_Mean) # mean, median, min, max, quartiles
+summary(df$Ratio_CytoConstrToNuc_Corr_Mean) # for a specific column
 
 # ---- Plot important variables ----
 
 bins <- seq (0,1,by=0.05)
 
 # for new data
-hist(No36_1202$Ratio_CytoConstrToNuc_Corr_Mean, xlim = c(0,1), breaks = bins, labels = FALSE)
-hist(No36_1202$Ratio_CytoToNuc_Corr_Mean, breaks = bins, xlim = c(0,1))
+hist(df$Ratio_CytoConstrToNuc_Corr_Mean, xlim = c(0,1), breaks = bins, labels = FALSE)
+hist(df$Ratio_CytoToNuc_Corr_Mean, breaks = bins, xlim = c(0,1))
 
 # for old data
 hist(No36_1118$Ratio_CytoNuc_Corr_Mean, breaks = 20, xlim = c(0,1))
