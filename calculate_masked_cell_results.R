@@ -30,13 +30,10 @@ require(tools) # for file name processing
 selectedFile <- file.choose()
 inputFolder <- dirname(selectedFile) # the input is the parent of the selected file
 fileName <- basename(selectedFile)
-
+fileName <- file_path_sans_ext(fileName)
 # Create an output folder with time-date stamp
 
-#thisTime = format(Sys.time(),"%Y-%m-%d_%H%M")
-#outputFolder <- file.path(inputFolder,paste0("Output_",thisTime))
-#dir.create(outputFolder) # creates within the input folder if it does not already exist
-
+df <- read_csv(selectedFile, show_col_types = FALSE)
 
 # ---- Add sample info to the table ----
 
@@ -79,7 +76,8 @@ df_summary <- df_mod %>% group_by(Sample) %>% summarise(
   `Cyto:Nuc Mean` = mean(`Mean_Cyto:Nucl`),
   `Cyto:Nuc IntDen` = mean(`IntDen_Cyto:Nucl`),
   `Cyto:Cell Mean` = mean(`Mean_Cyto:Cell`),
-  `Cyto:Cell IntDen` = mean(`IntDen_Cyto:Cell`))
+  `Cyto:Cell IntDen` = mean(`IntDen_Cyto:Cell`),
+  `nCells` = n())
 
 # ---- Visualize ----
 
