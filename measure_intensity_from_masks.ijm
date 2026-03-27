@@ -34,10 +34,20 @@ print("\\Clear"); // clear Log window
 //run("Bio-Formats Macro Extensions"); // supports native microscope files
 
 run("Set Measurements...", "area mean integrated stack display redirect=None decimal=3");
+run("Roi Defaults...", "color=yellow stroke=2 group=0");
 
 // collect data in a table with a time/date stamp
+// collect data in a table with a time/date stamp
 getDateAndTime(year, month, dayOfWeek, dayOfMonth, hour, minute, second, msec);
-timeString = "" + year + "-" + month + "-" + dayOfMonth + "-" + hour + "-" + minute; // have to start with empty string
+if (month<10) {monthString = "0"+(month+1);}
+else {monthString = month+1;} // months start with 0
+if (dayOfMonth<10) {dayString = +"0"+dayOfMonth;}
+else {dayString = dayOfMonth;}
+if (hour<10) {hourString = "0"+hour;}
+else{hourString = hour;}
+if (minute<10) {minString = "0" + minute;}
+else{minString = minute;}
+timeString = "" + year + "-" + monthString + "-" + dayString + "_" + hourString + "-" + minString; // have to start with empty string
 dataName = timeString + "_Results.csv";
 dataFile = outputDir + File.separator + dataName;
 dataHeaders = "Filename,Cell_Area,Cell_Mean,Cell_IntDen,Cell_RawIntDen,Nucl_Area,Nucl_Mean,Nucl_IntDen,Nucl_RawIntDen,Cyto_Area,Cyto_Mean,Cyto_IntDen,Cyto_RawIntDen";
@@ -61,7 +71,6 @@ print("Finished");
 // save Log
 selectWindow("Log");
 saveAs("text", outputDir + File.separator + timeString+ "_Log.txt");
-
 
 
 // ---- Functions ----
@@ -104,7 +113,7 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 	
 	imagePath = inputFolder + File.separator + fileName;
 	
-	print("Opening file",imagePath);
+	//print("Opening file",imagePath);
 	// open the image file
 	//run("Bio-Formats", "open=&imagePath");
 	open(imagePath);
@@ -116,6 +125,9 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 	extension = substring(fileName, dotIndex);
 
 	//print("Processing image",fileNumber," at path" ,imagePath);	
+	
+	selectImage(fileName);
+	fluorID = getImageID(); // get the unique id of the image
 	
 	// open the corresponding masks
 	lastUnderscore = lastIndexOf(basename, "_");
@@ -130,20 +142,22 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 		close("*");
 		return; // go to next file in folder
 	}
-	print("Opening cell mask", cellMaskPath);
+	//print("Opening cell mask", cellMaskPath);
 	open(cellMaskPath);
 	selectWindow(cellMaskName);
 	rename("cell");
+	cellMaskID = getImageID();
 
 	if (!File.exists(nucMaskPath)) {
 		print("Nucleus mask for",basename,"not found");
 		close("*");
 		return; // go to next file in folder
 	}
-	print("Opening nucleus mask", nucMaskPath);
+	//print("Opening nucleus mask", nucMaskPath);
 	open(nucMaskPath);
 	selectWindow(nucMaskName);
 	rename("nucleus"); 
+	nucMaskID = getImageID();
 	
 	// ---------- Measure and save
 	
@@ -152,6 +166,9 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 	// measure whole cell: first row of results
 	
 	selectImage("cell");
+	while (!isActive(cellMaskID)) { // insist that the desired image is active
+		wait(100);
+	}
 	run("Select None");
 	getStatistics(area, mean, min, max);
 	if(max == 0) {
@@ -163,17 +180,22 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 	//run("Threshold...");
 	run("Create Selection");
 	selectImage(fileName);
-	wait(100);
+	while (!isActive(fluorID)) { // insist that the fluor image is active
+		wait(100);
+	}
 	run("Restore Selection");
 	run("Measure");
 	run("Select None");
-	wait(100);
+	//wait(100);
 	
 	// measure nucleus: 2nd row of results
 	
 	selectImage("nucleus");
+	while (!isActive(nucMaskID)) { // insist that the desired image is active
+		wait(100);
+	}
 	run("Select None");
-	wait(100);
+	//wait(100);
 	getStatistics(area, mean, min, max);
 	if(max == 0) {
 		print("No segmented nucleus found for",fileName);
@@ -184,23 +206,29 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 	//run("Threshold...");
 	run("Create Selection");
 	selectImage(fileName);
-	wait(100);
+	while (!isActive(fluorID)) { // insist that the fluor image is active
+		wait(100);
+	}
 	run("Restore Selection");
 	run("Measure");
-	wait(100);
+	//wait(100);
 	
 	// dilate the nucleus and subtract its area from the cell
 	
 	selectImage("nucleus");
-	wait(100);
+	while (!isActive(nucMaskID)) { // insist that the desired image is active
+		wait(100);
+	}
 	run("Select None");
 	setAutoThreshold("Default dark no-reset");
 	//run("Threshold...");
 	run("Create Selection");
 	run("Enlarge...", "enlarge="+dilate+" pixel");
-	wait(100);
+	//wait(100);
 	selectImage("cell");
-	wait(100);
+	while (!isActive(cellMaskID)) { // insist that the desired image is active
+		wait(100);
+	}
 	run("Restore Selection");
 	setBackgroundColor(0, 0, 0);
 	run("Clear", "slice");
@@ -208,15 +236,23 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 	setAutoThreshold("Default dark no-reset");
 	//run("Threshold...");
 	run("Create Selection");
-	wait(100);
+	//wait(100);
 	
 	// measure the cytoplasm: 3rd row of results
 	
 	selectImage(fileName);
-	wait(100);
+	while (!isActive(fluorID)) { // insist that the fluor image is active
+		wait(100);
+	}
+
 	run("Restore Selection");
 	run("Measure");
-	wait(100);
+	run("Flatten");
+	run("Scale...", "x=0.5 y=0.5 width=128 height=127 interpolation=Bilinear average create title=scaled");
+	overlayName = basename + "_overlay.tif";
+	saveAs("Tiff", outputFolder + File.separator + overlayName);
+	close(overlayName);
+	//wait(100);
 	
 	// Collect measurements 
 	
@@ -253,7 +289,7 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 	// ---------- CLEANUP
 	
 	close("*");
-	wait(1000);
+	//wait(1000);
 	run("Clear Results");
 	run("Collect Garbage");
 
