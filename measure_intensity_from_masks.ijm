@@ -26,11 +26,12 @@
 
 // ---- Setup ----
 
+
 close("*");
 
 print("\\Clear"); // clear Log window
 
-//setBatchMode(true); // faster performance but doesn't work for all functions
+setBatchMode(true); // faster performance but doesn't work for all functions
 //run("Bio-Formats Macro Extensions"); // supports native microscope files
 
 run("Set Measurements...", "area mean integrated stack display redirect=None decimal=3");
@@ -57,6 +58,7 @@ if (File.exists(dataFile)==false) { // start the file with headers
     }
 // ---- Run ----
 
+startTime = getTime();
 print("Starting");
 
 processFolder(inputDir, outputDir, fileSuffix, chanName, dilate);
@@ -64,10 +66,13 @@ processFolder(inputDir, outputDir, fileSuffix, chanName, dilate);
 // Clean up images and get out of batch mode
 
 close("*");
-//setBatchMode(false);
-setBatchMode("exit and display");
+setBatchMode(false);
+//setBatchMode("exit and display");
 print("Finished");
 
+endTime = getTime();
+elapsedTime = (endTime-startTime)/1000;
+print("Finished in",elapsedTime,"seconds");
 // save Log
 selectWindow("Log");
 saveAs("text", outputDir + File.separator + timeString+ "_Log.txt");
@@ -202,8 +207,12 @@ function processFile(inputFolder, outputFolder, fileName, fileNumber, channelNam
 		close("*");
 		return; // go to next file
 	}
+	selectImage("nucleus"); // 
+	while (!isActive(nucMaskID)) { // insist that the desired image is active
+		wait(100);
+	}
 	setAutoThreshold("Default dark no-reset");
-	//run("Threshold...");
+	wait(100); // occasionally gets ahead of itself here
 	run("Create Selection");
 	selectImage(fileName);
 	while (!isActive(fluorID)) { // insist that the fluor image is active
